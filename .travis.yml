@@ -10,11 +10,14 @@ after_success:
 - mvn package
 before_install:
 - bash prebuild.sh
+before_deploy:
+      # Set up git user name and tag this commit
+      - git config --local user.name "crescoedge"
+      - git config --local user.email "crescoedge@gmail.com"
+      - git tag "1.0-SNAPSHOT"
 deploy:
   provider: releases
   api_key:
     secure: PCNPCan2kZYgyiaToICFqDK6IJSFsh+gLN1WfNBNknpYAAaZ9AIA+zkrBo8DCLbM4DpVjcm7tYjEd2HA6ha9pQArnxsK0kMXaR1ziKdDPqtflbvToakPffyH3Zqy7PzkddeG2wdBOWB0qI0Q7GZlJc+k80l+FLEBOYXb/ef9j4ZSAEKuuFM7xSQu5cjpdsMviONuoyUcg/YKE27WqL4z8VyT+zGm54zGTzc2JgO04JjPcUv6B8/KMPxa9fpT78vhBubFNbjrTO53P1+BWIcCGWK+iedLmG/XFizjfz+KDpM2pHLRBgphabXzBXTkzWJzwTnxfg0fe2KJUPRUD6H8ub30l26aIKC6NteQrD3btweyNSTZ7yDtCKB0M5MRiwXCf7B7KdpnTjblaE04sZhR+4DzURJtc9gATl/LPagplixdnLboTaAEf+gupd7i/+fzt1FrqXTdpwQhM9b7eKbBGXl1BkJNL+QxmEgE+xq6iSk8VIqxPoZNEdwVxIv4ms3lbKheUEupg9PWjObEVZhPM9z9+WvB3tv4b+tULVFp0MefpcY/kcOFKmWi8eTHSRiQNKyL7jrH/3tC7akvJ+GDqQv1H3bHhGWQ29ERJzZUl5HwIveUkUABGcedhUB9d0rVzaPH0xnqakfkDJ3zJtz3KBEfuYu1Qb73QArpNiN0BZ4=
   file: "target/agent-1.0-SNAPSHOT.jar"
   skip_cleanup: true
-  on:
-    tags: true
