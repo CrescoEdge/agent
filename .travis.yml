@@ -14,7 +14,7 @@ before_deploy:
       # Set up git user name and tag this commit
       - git config --local user.name "crescoedge"
       - git config --local user.email "crescoedge@gmail.com"
-      - git tag "1.0-SNAPSHOT"
+      - git tag "1.0-SNAPSHOT" --force
 deploy:
   provider: releases
   api_key:
