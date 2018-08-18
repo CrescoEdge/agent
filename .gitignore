@@ -1,0 +1,8 @@
+# Created by .ignore support plugin (hsz.mobi)
+src/main/resources/core-1.0-SNAPSHOT.jar
+src/main/resources/library-1.0-SNAPSHOT.jar
+src/main/resources/controller-1.0-SNAPSHOT.jar
+.idea/
+target/
+felix-cache/
+database/
