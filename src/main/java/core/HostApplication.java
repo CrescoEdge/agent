@@ -51,7 +51,6 @@ public class HostApplication
             httpPort = "8181";
         }
 
-
         //port
         configMap.put("org.osgi.service.http.port", httpPort);
 
