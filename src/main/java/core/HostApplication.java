@@ -66,8 +66,6 @@ public class HostApplication
         try
         {
 
-            //String httpPort = System.getProperty("CRESCO_port");
-
             boolean enableHttp = false;
             if(System.getenv("CRESCO_enable_http") != null) {
                 enableHttp = Boolean.parseBoolean(System.getenv("CRESCO_enable_http"));
