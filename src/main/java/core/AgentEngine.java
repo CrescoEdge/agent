@@ -6,7 +6,7 @@ import java.io.File;
 public class AgentEngine
 {
 
-    public static void main(String[] argv) throws Exception {
+    public static void main(String[] argv) {
 
         System.setProperty("org.apache.commons.logging.Log",
                 "org.apache.commons.logging.impl.NoOpLog");

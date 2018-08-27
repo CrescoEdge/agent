@@ -8,7 +8,10 @@ import org.osgi.framework.Constants;
 import org.osgi.util.tracker.ServiceTracker;
 
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class HostApplication
 {
@@ -237,7 +240,7 @@ public class HostApplication
             m_felix.stop();
             m_felix.waitForStop(0);
         } catch(Exception ex) {
-
+            ex.printStackTrace();
         }
     }
 }
