@@ -92,7 +92,7 @@ public class HostApplication
             BundleContext bc = m_felix.getBundleContext();
 
 
-            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.2.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.4.jar").start();
             installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar").start();
 
 
@@ -102,8 +102,10 @@ public class HostApplication
 
             if(enableConsole || enableHttp) {
                 installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.api-3.0.0.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.0.jar").start();
+
+                //installInternalBundleJars(bc, "org.apache.felix.http.api-3.0.0.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.2.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.4.jar").start();
                 installInternalBundleJars(bc, "jersey-all-2.22.2.jar").start();
             }
             if(enableConsole) {
@@ -115,7 +117,7 @@ public class HostApplication
 
             //installInternalBundleJars(bc,"org.apache.felix.bundlerepository-2.0.10.jar").start();
 
-            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.0.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.6.jar").start();
 
 
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
