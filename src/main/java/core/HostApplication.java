@@ -25,6 +25,7 @@ public class HostApplication
         //System.setProperty("felix.fileinstall.noInitialDelay", "true");
         //System.setProperty("felix.fileinstall.poll", "1000");
 
+
         System.out.println("Building OSGi Framework");
 
         // Create a configuration property map.
