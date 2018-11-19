@@ -2,9 +2,9 @@ package core;
 
 import org.apache.felix.framework.Felix;
 import org.apache.felix.framework.util.FelixConstants;
-import org.osgi.framework.Bundle;
-import org.osgi.framework.BundleContext;
-import org.osgi.framework.Constants;
+import org.osgi.framework.*;
+import org.osgi.service.cm.Configuration;
+import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.util.tracker.ServiceTracker;
 
 import java.net.URL;
@@ -21,19 +21,19 @@ public class HostApplication
 
     public HostApplication()
     {
-        //System.setProperty("felix.fileinstall.dir", "/Users/cody/IdeaProjects/firstosgi/target/");
-        //System.setProperty("felix.fileinstall.noInitialDelay", "true");
-        //System.setProperty("felix.fileinstall.poll", "1000");
-
 
         System.out.println("Building OSGi Framework");
 
         // Create a configuration property map.
         Map configMap = new HashMap();
         // Export the host provided service interface package.
-        configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA,
-                "sun.*,com.sun.*,javax.xml.*");
-        configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,javax.xml.*");
+        //configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*,javax.xml.*");
+        //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,javax.xml.*");
+        configMap.put("felix.systempackages.calculate.uses","true");
+        configMap.put("felix.systempackages.substitution","true");
+
+        configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*");
+        configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*");
 
 
         // make sure the cache is cleaned
@@ -93,38 +93,63 @@ public class HostApplication
             BundleContext bc = m_felix.getBundleContext();
 
 
-            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.4.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.10.jar").start();
             installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar").start();
 
 
-            installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.0.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.2.jar").start();
 
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
 
-            if(enableConsole || enableHttp) {
+            //if(enableConsole || enableHttp) {
                 installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
 
-                //installInternalBundleJars(bc, "org.apache.felix.http.api-3.0.0.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.2.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.4.jar").start();
                 installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.4.jar").start();
-                installInternalBundleJars(bc, "jersey-all-2.22.2.jar").start();
-            }
-            if(enableConsole) {
-                installInternalBundleJars(bc, "org.apache.felix.webconsole-4.3.4-all.jar").start();
-            }
+                //for RS-JAX
+                installInternalBundleJars(bc,"org.apache.aries.javax.jax.rs-api-1.0.1.jar");
+                installInternalBundleJars(bc,"org.apache.servicemix.specs.annotation-api-1.3-1.3_1.jar");
+                installInternalBundleJars(bc,"org.osgi.service.jaxrs-1.0.0.jar");
+                installInternalBundleJars(bc,"org.osgi.service.http.whiteboard-1.1.0.jar");
+                installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
+                installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
+
+
+            //}
+            //if(enableConsole) {
+                installInternalBundleJars(bc, "org.apache.felix.webconsole-4.3.8-all.jar").start();
+            //}
 
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.0.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.0.2.jar").start();
-
-            //installInternalBundleJars(bc,"org.apache.felix.bundlerepository-2.0.10.jar").start();
-
-            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.6.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.12.jar").start();
 
 
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
-
-
             installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
+
+            //look for io.cresco.dashboard.Plugin
+            /*
+            Service ID 64	Types: java.lang.Object
+            Component Name: io.cresco.dashboard.controllers.RootController
+            Component ID: 9
+            */
+
+
+            //ConfigurationAdmin configAdmin = getConfigurationAdmin( bc );
+            //Configuration configuration = configAdmin.getConfiguration( "org.ops4j.pax.logging", null );
+
+
+
+            boolean dashboardExist = checkService(bc,"io.cresco.library.plugin.PluginService","io.cresco.dashboard.Plugin",5);
+            if(dashboardExist) {
+
+                boolean dashboardIsReady = checkService(bc,"java.lang.Object","io.cresco.dashboard.controllers.PluginsController",5);
+                if(dashboardIsReady) {
+                    installInternalBundleJars(bc,"org.apache.aries.jax.rs.whiteboard-1.0.1.jar").start();
+                }
+            }
+
 
 
         }
@@ -246,4 +271,65 @@ public class HostApplication
             ex.printStackTrace();
         }
     }
+
+    public boolean checkService(BundleContext context, String className, String componentName) {
+
+        return checkService(context, className, componentName, 1);
+
+    }
+        public boolean checkService(BundleContext context, String className, String componentName, int TRYCOUNT) {
+        boolean isStarted = false;
+
+        try {
+            ServiceReference<?>[] servRefs = null;
+            int count = 0;
+
+            while ((!isStarted) && (count < TRYCOUNT)) {
+
+                String filterString = "(component.name=" + componentName + ")";
+                Filter filter = context.createFilter(filterString);
+
+                //servRefs = context.getServiceReferences(PluginService.class.getName(), filterString);
+                servRefs = context.getServiceReferences(className, filterString);
+
+                //System.out.println("REFS : " + servRefs.length);
+                if (servRefs == null || servRefs.length == 0) {
+                    //System.out.println("NULL FOUND NOTHING!");
+
+                } else {
+                    //System.out.println("Running Service Count: " + servRefs.length);
+
+                    for (ServiceReference sr : servRefs) {
+
+                        boolean assign = servRefs[0].isAssignableTo(context.getBundle(), className);
+
+                        if(assign) {
+                            isStarted = true;
+                        }
+                    }
+                }
+                count++;
+                Thread.sleep(1000);
+            }
+            if(servRefs == null) {
+                System.out.println("COULD NOT START PLUGIN COULD NOT GET SERVICE");
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return isStarted;
+    }
+
+
+
+    private ConfigurationAdmin getConfigurationAdmin(final BundleContext bundleContext )
+    {
+        final ServiceReference ref = bundleContext.getServiceReference( ConfigurationAdmin.class.getName() );
+        if( ref == null )
+        {
+            throw new IllegalStateException( "Cannot find a configuration admin service" );
+        }
+        return (ConfigurationAdmin) bundleContext.getService( ref );
+    }
+
 }
