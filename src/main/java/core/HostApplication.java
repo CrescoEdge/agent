@@ -101,7 +101,7 @@ public class HostApplication
 
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
 
-            //if(enableConsole || enableHttp) {
+            if(enableConsole || enableHttp) {
                 installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
 
                 installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.4.jar").start();
@@ -114,11 +114,10 @@ public class HostApplication
                 installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
                 installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
 
-
-            //}
-            //if(enableConsole) {
+            }
+            if(enableConsole) {
                 installInternalBundleJars(bc, "org.apache.felix.webconsole-4.3.8-all.jar").start();
-            //}
+            }
 
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.0.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.0.2.jar").start();
@@ -128,25 +127,16 @@ public class HostApplication
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
             installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
 
-            //look for io.cresco.dashboard.Plugin
-            /*
-            Service ID 64	Types: java.lang.Object
-            Component Name: io.cresco.dashboard.controllers.RootController
-            Component ID: 9
-            */
 
+            if(enableConsole || enableHttp) {
 
-            //ConfigurationAdmin configAdmin = getConfigurationAdmin( bc );
-            //Configuration configuration = configAdmin.getConfiguration( "org.ops4j.pax.logging", null );
+                boolean dashboardExist = checkService(bc, "io.cresco.library.plugin.PluginService", "io.cresco.dashboard.Plugin", 5);
+                if (dashboardExist) {
 
-
-
-            boolean dashboardExist = checkService(bc,"io.cresco.library.plugin.PluginService","io.cresco.dashboard.Plugin",5);
-            if(dashboardExist) {
-
-                boolean dashboardIsReady = checkService(bc,"java.lang.Object","io.cresco.dashboard.controllers.PluginsController",5);
-                if(dashboardIsReady) {
-                    installInternalBundleJars(bc,"org.apache.aries.jax.rs.whiteboard-1.0.1.jar").start();
+                    boolean dashboardIsReady = checkService(bc, "java.lang.Object", "io.cresco.dashboard.controllers.PluginsController", 5);
+                    if (dashboardIsReady) {
+                        installInternalBundleJars(bc, "org.apache.aries.jax.rs.whiteboard-1.0.1.jar").start();
+                    }
                 }
             }
 
