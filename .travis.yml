@@ -19,7 +19,8 @@ before_install:
 before_deploy:
 - git config --local user.name "crescoedge"
 - git config --local user.email "crescoedge@gmail.com"
-- git tag "1.0-SNAPSHOT" --force
+- git tag -f "1.0-SNAPSHOT"
+- git push origin --delete "1.0-SNAPSHOT"
 deploy:
   provider: releases
   api_key:
