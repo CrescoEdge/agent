@@ -113,6 +113,7 @@ public class HostApplication
                 installInternalBundleJars(bc,"org.osgi.service.http.whiteboard-1.1.0.jar");
                 installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
                 installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
+                installInternalBundleJars(bc,"org.apache.aries.jax.rs.whiteboard-1.0.1.jar").start();
 
             }
             if(enableConsole) {
@@ -128,6 +129,7 @@ public class HostApplication
             installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
 
 
+            /*
             if(enableConsole || enableHttp) {
 
                 boolean dashboardExist = checkService(bc, "io.cresco.library.plugin.PluginService", "io.cresco.dashboard.Plugin", 5);
@@ -139,6 +141,7 @@ public class HostApplication
                     }
                 }
             }
+            */
 
 
 
@@ -267,7 +270,7 @@ public class HostApplication
         return checkService(context, className, componentName, 1);
 
     }
-        public boolean checkService(BundleContext context, String className, String componentName, int TRYCOUNT) {
+    public boolean checkService(BundleContext context, String className, String componentName, int TRYCOUNT) {
         boolean isStarted = false;
 
         try {
