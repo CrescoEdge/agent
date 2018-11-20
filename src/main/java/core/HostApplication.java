@@ -129,6 +129,7 @@ public class HostApplication
             installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
 
 
+
             /*
             if(enableConsole || enableHttp) {
 
