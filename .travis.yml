@@ -10,9 +10,9 @@ after_success:
 - mvn package
 - docker login -u $DOCKER_USER -p $DOCKER_PASS
 - docker build -t crescoedgecomputing/quickstart .
-- docker push crescoedgecomputing/quickstart
+- docker push docker.io/crescoedgecomputing/quickstart
 - docker build -t crescoedgecomputing/quickstart:arm64v8 -f Dockerfile.arm64v8 .
-- docker push crescoedgecomputing/quickstart:arm64v8
+- docker push docker.io/crescoedgecomputing/quickstart:arm64v8
 - bash <(curl -s https://codecov.io/bash)
 before_install:
 - bash prebuild.sh
