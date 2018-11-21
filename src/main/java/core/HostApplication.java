@@ -129,23 +129,6 @@ public class HostApplication
             installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
 
 
-
-            /*
-            if(enableConsole || enableHttp) {
-
-                boolean dashboardExist = checkService(bc, "io.cresco.library.plugin.PluginService", "io.cresco.dashboard.Plugin", 5);
-                if (dashboardExist) {
-
-                    boolean dashboardIsReady = checkService(bc, "java.lang.Object", "io.cresco.dashboard.controllers.PluginsController", 5);
-                    if (dashboardIsReady) {
-                        installInternalBundleJars(bc, "org.apache.aries.jax.rs.whiteboard-1.0.1.jar").start();
-                    }
-                }
-            }
-            */
-
-
-
         }
         catch (Exception ex)
         {
