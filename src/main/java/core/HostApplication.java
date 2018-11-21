@@ -139,9 +139,6 @@ public class HostApplication
 
     private Bundle installInternalBundleJars(BundleContext context, String bundleName) {
 
-        //System.out.println("installing bundle: " + bundleName);
-
-
         Bundle installedBundle = null;
         try {
             URL bundleURL = getClass().getClassLoader().getResource(bundleName);
