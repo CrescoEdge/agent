@@ -12,8 +12,10 @@ after_success:
 - docker build -t docker.io/crescoedgecomputing/quickstart .
 - docker push docker.io/crescoedgecomputing/quickstart
 - docker build -t docker.io/crescoedgecomputing/quickstart:arm32v6 -f Dockerfile.arm32v6 .
-- docker push docker.io/crescoedgecomputing/quickstart:arm64v8
-- docker build -t docker.io/crescoedgecomputing/quickstart:arm32v6 -f Dockerfile.arm32v6 .
+- docker push docker.io/crescoedgecomputing/quickstart:arm32v6
+- docker build -t docker.io/crescoedgecomputing/quickstart:arm32v7 -f Dockerfile.arm32v7 .
+- docker push docker.io/crescoedgecomputing/quickstart:arm32v7
+- docker build -t docker.io/crescoedgecomputing/quickstart:arm64v8 -f Dockerfile.arm64v8 .
 - docker push docker.io/crescoedgecomputing/quickstart:arm64v8
 - bash <(curl -s https://codecov.io/bash)
 before_install:
