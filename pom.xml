@@ -36,7 +36,6 @@
 
 <dependencies>
 
-
     <!-- https://mvnrepository.com/artifact/org.apache.felix/org.apache.felix.main -->
     <dependency>
         <groupId>org.apache.felix</groupId>
@@ -49,7 +48,6 @@
         <artifactId>org.osgi.service.cm</artifactId>
         <version>1.6.0</version>
     </dependency>
-
 
 </dependencies>
 <build>
