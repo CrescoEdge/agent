@@ -36,7 +36,6 @@
 
 <dependencies>
 
-    <!-- https://mvnrepository.com/artifact/org.apache.felix/org.apache.felix.main -->
     <dependency>
         <groupId>org.apache.felix</groupId>
         <artifactId>org.apache.felix.main</artifactId>
