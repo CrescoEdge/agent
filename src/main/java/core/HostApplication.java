@@ -91,7 +91,6 @@ public class HostApplication
 
             BundleContext bc = m_felix.getBundleContext();
 
-
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.10.jar").start();
             installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar").start();
 
@@ -122,7 +121,6 @@ public class HostApplication
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.0.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.0.2.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.scr-2.1.12.jar").start();
-
 
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
             installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
