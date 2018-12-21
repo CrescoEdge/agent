@@ -7,6 +7,7 @@ import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.util.tracker.ServiceTracker;
 
+import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -91,6 +92,30 @@ public class HostApplication
 
             BundleContext bc = m_felix.getBundleContext();
 
+
+            //install any user-provided bundle dependencies
+            try {
+                File directory = new File("externaljars");
+                if(directory.exists()) {
+                    File[] files = directory.listFiles();
+                    if(files != null) {
+
+                        List<Bundle> bundleList = new ArrayList<>();
+                        for (File file : files) {
+                            if (file.isFile()) {
+                                bundleList.add(installExternalBundleJars(bc,file.getAbsolutePath()));
+                            }
+                        }
+                        for(Bundle b : bundleList) {
+                            b.start();
+                        }
+                    }
+                }
+
+            } catch(Exception ex) {
+                ex.printStackTrace();
+            }
+
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.10.jar").start();
             installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar").start();
 
@@ -98,6 +123,7 @@ public class HostApplication
             installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.2.jar").start();
 
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
+
 
             if(enableConsole || enableHttp) {
                 installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
@@ -123,8 +149,8 @@ public class HostApplication
             installInternalBundleJars(bc,"org.apache.felix.scr-2.1.12.jar").start();
 
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
-            installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
 
+            installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
 
         }
         catch (Exception ex)
@@ -162,6 +188,33 @@ public class HostApplication
 
         return installedBundle;
     }
+
+    private Bundle installExternalBundleJars(BundleContext context, String bundleName) {
+
+        Bundle installedBundle = null;
+        try {
+            //URL bundleURL = new URL("file://" + bundleName);
+            //if(bundleURL != null) {
+
+                installedBundle = context.installBundle("file://" + bundleName);
+
+
+            //} else {
+            //    System.out.println("Bundle = null for " + bundleName);
+            //}
+        } catch(Exception ex) {
+            ex.printStackTrace();
+        }
+
+        if(installedBundle == null) {
+            System.out.println("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
+
+            System.exit(0);
+        }
+
+        return installedBundle;
+    }
+
     private boolean startInternalBundleJars(Bundle bundle) {
 
         try {
