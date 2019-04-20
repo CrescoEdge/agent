@@ -118,6 +118,8 @@ public class HostApplication
                 ex.printStackTrace();
             }
 
+            //installInternalBundleJars(bc,"javax.activation-api-1.2.0.jar").start();
+
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.10.jar").start();
             installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar").start();
 
