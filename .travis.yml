@@ -1,3 +1,12 @@
+os:
+  - linux
+  - osx
+matrix:
+  include:
+    - os: linux
+      dist: bionic
+    - os: osx
+      osx_image: xcode9.3
 language: java
 addons:
   sonarcloud:
