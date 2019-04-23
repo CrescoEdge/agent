@@ -118,7 +118,19 @@ public class HostApplication
                 ex.printStackTrace();
             }
 
-            //installInternalBundleJars(bc,"javax.activation-api-1.2.0.jar").start();
+
+
+            //items to make Java > 8 work, work in progress, does not work
+            /*
+            installInternalBundleJars(bc,"javax.activation-api-1.2.0.jar");
+            installInternalBundleJars(bc,"javax.activation-1.2.0.jar");
+            installInternalBundleJars(bc,"jaxb-api-2.3.1.jar");
+            installInternalBundleJars(bc,"jaxws-api-2.3.1.jar");
+            installInternalBundleJars(bc,"javax.xml.soap-api-1.4.0.jar");
+            installInternalBundleJars(bc,"jaxb-runtime-2.3.1.jar");
+            installInternalBundleJars(bc,"jaxb-impl-2.3.1.jar");
+            installInternalBundleJars(bc,"jaxb-core-2.3.0.jar");
+            */
 
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.10.jar").start();
             installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar").start();
