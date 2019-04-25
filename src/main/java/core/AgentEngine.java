@@ -20,7 +20,7 @@ public class AgentEngine
 
         File agentConfig = new File(configFile);
         if(agentConfig.isFile()) {
-            System.setProperty("agentConfig",agentConfig.getAbsolutePath());
+            System.setProperty("agentConfig", agentConfig.getAbsolutePath());
         }
 
         HostApplication ha = new HostApplication();

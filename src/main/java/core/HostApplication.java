@@ -8,7 +8,9 @@ import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.util.tracker.ServiceTracker;
 
 import java.io.File;
+import java.net.InetAddress;
 import java.net.URL;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -19,11 +21,16 @@ public class HostApplication
     private HostActivator m_activator = null;
     private Felix m_felix = null;
     private ServiceTracker m_tracker = null;
+    private Config agentConfig = null;
 
     public HostApplication()
     {
 
-        System.out.println("Building OSGi Framework");
+        Map<String,Object> fileConfigMap =  initAgentConfigMap();
+
+        agentConfig = new Config(fileConfigMap);
+
+        //System.out.println("Building OSGi Framework");
 
         // Create a configuration property map.
         Map configMap = new HashMap();
@@ -72,6 +79,7 @@ public class HostApplication
         try
         {
 
+            /*
             boolean enableHttp = false;
             if(System.getenv("CRESCO_enable_http") != null) {
                 enableHttp = Boolean.parseBoolean(System.getenv("CRESCO_enable_http"));
@@ -85,6 +93,13 @@ public class HostApplication
             } else {
                 enableConsole = Boolean.parseBoolean(System.getProperty("enable_console", "false"));
             }
+            */
+
+            boolean enableHttp = agentConfig.getBooleanParam("enable_http",Boolean.FALSE);
+            boolean enableConsole = agentConfig.getBooleanParam("enable_console",Boolean.FALSE);
+
+
+
 
             // Now create an instance of the framework with
             // our configuration properties.
@@ -229,6 +244,126 @@ public class HostApplication
 
         return installedBundle;
     }
+
+
+    private Map<String,Object> initAgentConfigMap() {
+        Map<String, Object> configParams = null;
+        try {
+
+            configParams = new HashMap<>();
+
+            String agentConfig = System.getProperty("agentConfig");
+
+
+            if (agentConfig == null) {
+                agentConfig = "conf/agent.ini";
+            }
+
+
+            File configFile = new File(agentConfig);
+            FileConfig config = null;
+            if (configFile.isFile()) {
+
+                //Agent Config
+                config = new FileConfig(configFile.getAbsolutePath());
+                configParams = config.getConfigMap();
+
+            }
+
+            /*
+            String configMsg = "Property > Env";
+
+            if (config == null) {
+                configParams = new HashMap<>();
+            } else {
+                configMsg = "Property > Env > " + configFile;
+            }
+            */
+
+
+            String platform = System.getenv("CRESCO_PLATFORM");
+            if (platform == null) {
+
+                if(config != null) {
+                    platform = config.getStringParams("general", "platform");
+                }
+
+                if (platform == null) {
+                    platform = "unknown";
+                }
+            }
+
+            configParams.put("platform", platform);
+            //enableMsg.setParam("platform", platform);
+
+            String environment = System.getenv("CRESCO_ENVIRONMENT");
+            if (environment == null) {
+
+                if(config != null) {
+                    environment = config.getStringParams("general", "environment");
+                }
+
+                if (environment == null) {
+                    try {
+                        environment = System.getProperty("os.name");
+                    } catch (Exception ex) {
+                        environment = "unknown";
+                    }
+                }
+            }
+            //enableMsg.setParam("environment", environment);
+            configParams.put("environment", environment);
+
+            String location = System.getenv("CRESCO_LOCATION");
+            if(location == null) {
+
+                if(config != null) {
+                    location = config.getStringParams("general", "location");
+                }
+            }
+            if (location == null) {
+
+                try {
+                    location = InetAddress.getLocalHost().getHostName();
+                    if (location != null) {
+                        //logger.info("Location set: " + location);
+                    }
+                } catch (Exception ex) {
+                    //logger.error("getLocalHost() Failed : " + ex.getMessage());
+                }
+
+                if (location == null) {
+                    try {
+
+                        String osType = System.getProperty("os.name").toLowerCase();
+                        if (osType.equals("windows")) {
+                            location = System.getenv("COMPUTERNAME");
+                        } else if (osType.equals("linux")) {
+                            location = System.getenv("HOSTNAME");
+                        }
+
+                        if (location != null) {
+                            //logger.info("Location set env: " + location);
+                        }
+
+                    } catch (Exception exx) {
+                        //do nothing
+                        //logger.error("Get System Env Failed : " + exx.getMessage());
+                    }
+                }
+            }
+            if (location == null) {
+                location = "unknown";
+            }
+            //enableMsg.setParam("location", location);
+            configParams.put("location", location);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(0);
+        }
+        return configParams;
+    }
+
 
     private boolean startInternalBundleJars(Bundle bundle) {
 
