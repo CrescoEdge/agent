@@ -85,7 +85,7 @@ public class Config {
      */
     public Double getDoubleParam(String param) {
         try {
-            String env = System.getProperty(param);
+            /*String env = System.getProperty(param);
             if(env == null) {
                 env = System.getenv(ENV_PREFIX + param);
             }
@@ -94,10 +94,10 @@ public class Config {
                 synchronized (lockConfig) {
                     configMap.put(param,env);
                 }
-            }
+            }*/
+            String env = getStringParam(param);
 
-            return Double.parseDouble(env);
-
+            return env == null ? null : Double.parseDouble(env);
         } catch (NumberFormatException nfe) {
             try {
                 if(configMap.containsKey(param)) {
@@ -130,7 +130,7 @@ public class Config {
      */
     public Integer getIntegerParam(String param) {
         try {
-            String env = System.getProperty(param);
+            /*String env = System.getProperty(param);
             if(env == null) {
                 env = System.getenv(ENV_PREFIX + param);
             }
@@ -139,9 +139,10 @@ public class Config {
                 synchronized (lockConfig) {
                     configMap.put(param,env);
                 }
-            }
+            }*/
+            String env = getStringParam(param);
 
-            return Integer.parseInt(env);
+            return env == null ? null : Integer.parseInt(env);
         } catch (NumberFormatException nfe) {
             try {
                 if(configMap.containsKey(param)) {
@@ -174,7 +175,7 @@ public class Config {
      */
     public Long getLongParam(String param) {
         try {
-            String env = System.getProperty(param);
+            /*String env = System.getProperty(param);
             if(env == null) {
                 env = System.getenv(ENV_PREFIX + param);
             }
@@ -183,9 +184,10 @@ public class Config {
                 synchronized (lockConfig) {
                     configMap.put(param,env);
                 }
-            }
+            }*/
+            String env = getStringParam(param);
 
-            return Long.parseLong(env);
+            return env == null ? null : Long.parseLong(env);
         } catch (NumberFormatException nfe) {
             try {
                 if(configMap.containsKey(param)) {
