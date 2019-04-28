@@ -22,6 +22,7 @@ public class HostApplication
     private Felix m_felix = null;
     private ServiceTracker m_tracker = null;
     private Config agentConfig = null;
+    private Bundle controllerBundle = null;
 
     public HostApplication()
     {
@@ -76,8 +77,23 @@ public class HostApplication
         list.add(m_activator);
         configMap.put(FelixConstants.SYSTEMBUNDLE_ACTIVATORS_PROP, list);
 
-        try
-        {
+        try {
+
+            Runtime.getRuntime().addShutdownHook(new Thread()
+            {
+                @Override
+                public void run()
+                {
+                    try {
+                        controllerBundle.stop();
+                        //shutdownApplication();
+                    } catch (Exception ex) {
+                        System.out.println("Shutdown Exception");
+                        ex.printStackTrace();
+                    }
+                }
+            });
+
 
             /*
             boolean enableHttp = false;
@@ -180,7 +196,8 @@ public class HostApplication
 
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
 
-            installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar").start();
+            controllerBundle = installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar");
+            controllerBundle.start();
 
         }
         catch (Exception ex)
