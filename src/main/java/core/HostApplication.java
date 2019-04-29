@@ -23,6 +23,9 @@ public class HostApplication
     private ServiceTracker m_tracker = null;
     private Config agentConfig = null;
     private Bundle controllerBundle = null;
+    private Bundle httpBundle = null;
+
+
 
     public HostApplication()
     {
@@ -85,6 +88,9 @@ public class HostApplication
                 public void run()
                 {
                     try {
+                        if(httpBundle != null) {
+                            httpBundle.stop();
+                        }
                         controllerBundle.stop();
                         //shutdownApplication();
                     } catch (Exception ex) {
@@ -183,7 +189,8 @@ public class HostApplication
                 installInternalBundleJars(bc,"org.osgi.service.http.whiteboard-1.1.0.jar");
                 installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
                 installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
-                installInternalBundleJars(bc,"org.apache.aries.jax.rs.whiteboard-1.0.1.jar").start();
+                httpBundle = installInternalBundleJars(bc,"org.apache.aries.jax.rs.whiteboard-1.0.1.jar");
+                httpBundle.start();
 
             }
             if(enableConsole) {
