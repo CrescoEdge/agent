@@ -100,7 +100,6 @@ public class HostApplication
                 }
             });
 
-
             /*
             boolean enableHttp = false;
             if(System.getenv("CRESCO_enable_http") != null) {
