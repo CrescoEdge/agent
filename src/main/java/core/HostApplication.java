@@ -202,8 +202,17 @@ public class HostApplication
 
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
 
+            //install possible embedded controller depends, let controller start if it wants
+            //installInternalBundleJars(bc,"cep-1.0-SNAPSHOT.jar");
+            //installInternalBundleJars(bc,"repo-1.0-SNAPSHOT.jar");
+            //installInternalBundleJars(bc,"sysinfo-1.0-SNAPSHOT.jar");
+            //installInternalBundleJars(bc,"dashboard-1.0-SNAPSHOT.jar");
+
+
             controllerBundle = installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar");
             controllerBundle.start();
+
+
 
         }
         catch (Exception ex)

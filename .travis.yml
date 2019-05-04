@@ -2,8 +2,8 @@ matrix:
   include:
     - os: linux
       dist: bionic
-    - os: osx
-      osx_image: xcode9.3
+#    - os: osx
+#      osx_image: xcode9.3
 language: java
 addons:
   sonarcloud:
@@ -38,8 +38,8 @@ deploy:
   file:
     -target/agent-1.0-SNAPSHOT.jar
     -target/jfx/native/agent-1.0-snapshot-1.0.deb
-    -target/jfx/native/agent-1.0-SNAPSHOT-1.0.pkg
-    -target/jfx/native/agent-1.0-SNAPSHOT-1.0.dmg
+#    -target/jfx/native/agent-1.0-SNAPSHOT-1.0.pkg
+#    -target/jfx/native/agent-1.0-SNAPSHOT-1.0.dmg
   skip_cleanup: true
 env:
   global:
