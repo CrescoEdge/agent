@@ -167,7 +167,7 @@ public class HostApplication
             installInternalBundleJars(bc,"jaxb-core-2.3.0.jar");
             */
 
-            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.10.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.14.jar").start();
             installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar").start();
 
 
@@ -175,20 +175,21 @@ public class HostApplication
 
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
 
+            installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
+            installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
 
             if(enableConsole || enableHttp) {
                 installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
 
-                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.4.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.4.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.6.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.8.jar").start();
                 //for RS-JAX
-                installInternalBundleJars(bc,"org.apache.aries.javax.jax.rs-api-1.0.1.jar");
+                installInternalBundleJars(bc,"org.apache.aries.javax.jax.rs-api-1.0.4.jar");
                 installInternalBundleJars(bc,"org.apache.servicemix.specs.annotation-api-1.3-1.3_1.jar");
                 installInternalBundleJars(bc,"org.osgi.service.jaxrs-1.0.0.jar");
                 installInternalBundleJars(bc,"org.osgi.service.http.whiteboard-1.1.0.jar");
-                installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
-                installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
-                httpBundle = installInternalBundleJars(bc,"org.apache.aries.jax.rs.whiteboard-1.0.1.jar");
+
+                httpBundle = installInternalBundleJars(bc,"org.apache.aries.jax.rs.whiteboard-1.0.4.jar");
                 httpBundle.start();
 
             }
@@ -196,9 +197,10 @@ public class HostApplication
                 installInternalBundleJars(bc, "org.apache.felix.webconsole-4.3.8-all.jar").start();
             }
 
-            installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.0.jar").start();
-            installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.0.2.jar").start();
-            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.12.jar").start();
+
+            installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.2.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.0.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.16.jar").start();
 
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
 
