@@ -3,14 +3,12 @@ package core;
 import org.apache.felix.framework.Felix;
 import org.apache.felix.framework.util.FelixConstants;
 import org.osgi.framework.*;
-import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.util.tracker.ServiceTracker;
 
 import java.io.File;
 import java.net.InetAddress;
 import java.net.URL;
-import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,10 +20,9 @@ public class HostApplication
     private Felix m_felix = null;
     private ServiceTracker m_tracker = null;
     private Config agentConfig = null;
+    private Bundle coreBundle = null;
     private Bundle controllerBundle = null;
     private Bundle httpBundle = null;
-
-
 
     public HostApplication()
     {
@@ -66,8 +63,6 @@ public class HostApplication
             httpPort = "8080";
         }
 
-
-
         //port
         configMap.put("org.osgi.service.http.port", httpPort);
 
@@ -88,11 +83,16 @@ public class HostApplication
                 public void run()
                 {
                     try {
-                        if(httpBundle != null) {
-                            httpBundle.stop();
-                        }
-                        controllerBundle.stop();
-                        //shutdownApplication();
+
+                         if (httpBundle != null) {
+                             httpBundle.stop();
+                         }
+
+                         coreBundle.stop();
+
+                         controllerBundle.stop();
+                            //shutdownApplication();
+
                     } catch (Exception ex) {
                         System.out.println("Shutdown Exception");
                         ex.printStackTrace();
@@ -110,7 +110,6 @@ public class HostApplication
             m_felix.start();
 
             BundleContext bc = m_felix.getBundleContext();
-
 
             //install any user-provided bundle dependencies
             try {
@@ -148,7 +147,8 @@ public class HostApplication
             */
 
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.14.jar").start();
-            installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar").start();
+            coreBundle = installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar");
+            coreBundle.start();
 
 
             installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.2.jar").start();
@@ -169,7 +169,6 @@ public class HostApplication
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.2.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.0.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.scr-2.1.16.jar").start();
-
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
 
             controllerBundle = installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar");
@@ -186,6 +185,7 @@ public class HostApplication
         }
 
     }
+
 
     private Bundle installInternalBundleJars(BundleContext context, String bundleName) {
 
