@@ -88,14 +88,19 @@ public class HostApplication
                              httpBundle.stop();
                          }
 
-                         if(coreBundle != null) {
-                             coreBundle.stop();
-                         }
+                        if(coreBundle != null) {
 
-                         if(controllerBundle != null) {
+                            coreBundle.stop();
+
+                             while(coreBundle.getState() != 4) {
+                                 Thread.sleep(100);
+                             }
+
+                        }
+
+                        if(controllerBundle != null) {
                              controllerBundle.stop();
-                         }
-
+                        }
 
                     } catch (Exception ex) {
                         System.out.println("Shutdown Exception");
@@ -157,6 +162,7 @@ public class HostApplication
 
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
 
+
             installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
             installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
 
@@ -174,8 +180,9 @@ public class HostApplication
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
 
 
-            //coreBundle = installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar");
-            //coreBundle.start();
+
+            coreBundle = installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar");
+            coreBundle.start();
 
             controllerBundle = installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar");
             controllerBundle.start();
