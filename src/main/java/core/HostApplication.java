@@ -88,10 +88,14 @@ public class HostApplication
                              httpBundle.stop();
                          }
 
-                         coreBundle.stop();
+                         if(coreBundle != null) {
+                             coreBundle.stop();
+                         }
 
-                         controllerBundle.stop();
-                            //shutdownApplication();
+                         if(controllerBundle != null) {
+                             controllerBundle.stop();
+                         }
+
 
                     } catch (Exception ex) {
                         System.out.println("Shutdown Exception");
@@ -147,9 +151,7 @@ public class HostApplication
             */
 
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.14.jar").start();
-            coreBundle = installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar");
-            coreBundle.start();
-
+            installInternalBundleJars(bc,"logger-1.0-SNAPSHOT.jar").start();
 
             installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.2.jar").start();
 
@@ -170,6 +172,10 @@ public class HostApplication
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.0.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.scr-2.1.16.jar").start();
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
+
+
+            //coreBundle = installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar");
+            //coreBundle.start();
 
             controllerBundle = installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar");
             controllerBundle.start();
