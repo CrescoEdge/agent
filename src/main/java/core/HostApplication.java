@@ -98,6 +98,7 @@ public class HostApplication
 
                         }
 
+
                         if(controllerBundle != null) {
                              controllerBundle.stop();
                         }
