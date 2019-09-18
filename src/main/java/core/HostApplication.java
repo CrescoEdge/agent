@@ -40,6 +40,8 @@ public class HostApplication
         //configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*,javax.xml.*");
         //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,javax.xml.*");
 
+
+
         configMap.put("felix.systempackages.calculate.uses","true");
         configMap.put("felix.systempackages.substitution","true");
 
