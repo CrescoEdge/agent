@@ -12,7 +12,7 @@ language: java
 #      secure: rKe4rjsmw4gE8vAJqds7DYDjnP2Hk+33NVwnfMWYs7chAZssQ/F/cM0RPr/Rbr3gCZdxvbiNJ+/Ekjhfn9Ia5Vs+7H+Hplg3DaiNXwAhMi3ge6enP85KvKrhbmLGmv7bzOJhOFvmgfj5Xk5P2nhEvRTV0gTf1h3fVVIPS/RPxsmt8tXzE/BP3exvcVsQhP8s3WA1uOI8OfENB0BZyGMZh31VvqF7q0YU+1HaFDLnE7IeozN+NvGT4aBh4YCgqOUV8MK2RD+3HUlsivAbQccweLdCDnvQ1jkAC8w5Yqd0lOy73RP5zltw7Q62pn44EP458X3TTlPPWNTg/0sKSJh9hIHTO3PkBQD1hpShGrG4ZWU9rTtzSXpHqZkIYeNMFEh5XWD7G64ezDimQuew+PjDrST4krp+Iey8ZGuWeHb0lMRdnUgQv7KL+BJZg/HnXPyWR3P0O3SHDihYhVdGrqqw1QbFqUP94q8Fj9L4Qfc0BHcR6s51qZv6fSa26f8slCPCBxRs9o12j+zZ5HYldl8/O5ZJET+NyJc/HH0Ut2bWwWZYYW2+UrHQeTGWbh1Z4JbA8DOFc2Bl1uS0HHqmMIJtNzJKVxddiRvwVRRZZg7QWcfgGblHHzwRZEFd/K9U9bqKgsMP+zoQEsHDJgS0fzAZJux8cXDHCDav23Qft6APlPI=
 script:
 #- mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar
--mvn package -Dmaven.test.skip=true
+- mvn package -Dmaven.test.skip=true
 
 
 after_success:
