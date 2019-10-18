@@ -106,7 +106,7 @@
                     </goals>
                     <configuration>
                         <mainClass>core.AgentEngine</mainClass>
-                        <bundleJre>false</bundleJre>
+                        <bundleJre>true</bundleJre>
                         <administratorRequired>true</administratorRequired>
                         <generateInstaller>true</generateInstaller>
                     </configuration>
