@@ -6,7 +6,7 @@ public class AgentEngineShutdown
 
     public static void main(String[] argv) {
 
-        AgentEngine.getHa().shutdownApplication();
+        System.exit(0);
 
     }
 }
