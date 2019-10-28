@@ -40,7 +40,6 @@ public class HostApplication
         //configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*,javax.xml.*");
         //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,javax.xml.*");
 
-
         configMap.put("felix.systempackages.calculate.uses","true");
         configMap.put("felix.systempackages.substitution","true");
 
@@ -50,6 +49,9 @@ public class HostApplication
 
         // make sure the cache is cleaned
         configMap.put(Constants.FRAMEWORK_STORAGE_CLEAN, Constants.FRAMEWORK_STORAGE_CLEAN_ONFIRSTINIT);
+        //set storage location
+        configMap.put(Constants.FRAMEWORK_STORAGE, "cresco-data/felix-cache");
+
 
         //config.put(FRAMEWORK_SYSTEMPACKAGES_EXTRA, this.systemPackages.toString());
 
