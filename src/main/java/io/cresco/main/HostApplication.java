@@ -1,4 +1,4 @@
-package core;
+package io.cresco.main;
 
 import org.apache.felix.framework.Felix;
 import org.apache.felix.framework.util.FelixConstants;

@@ -1,10 +1,22 @@
-package core;
+package io.cresco.main;
 
 
 import java.io.File;
 
 public class AgentEngine
 {
+
+    protected static HostApplication ha;
+
+
+    public static HostApplication create() throws Exception {
+        ha = new HostApplication();
+        return ha;
+    }
+
+    public static HostApplication getHa() {
+        return ha;
+    }
 
     public static void main(String[] argv) {
 
@@ -23,10 +35,12 @@ public class AgentEngine
             System.setProperty("agentConfig", agentConfig.getAbsolutePath());
         }
 
-        HostApplication ha = new HostApplication();
+        try {
+            AgentEngine.create();
 
-
-
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
 
     }
 }

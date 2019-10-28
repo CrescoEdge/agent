@@ -94,7 +94,7 @@
                 </descriptors>
                 <archive>
                     <manifest>
-                        <mainClass>core.AgentEngine</mainClass>
+                        <mainClass>io.cresco.main.AgentEngine</mainClass>
                         <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                         <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
                     </manifest>

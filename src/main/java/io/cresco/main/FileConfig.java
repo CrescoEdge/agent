@@ -1,4 +1,4 @@
-package core;
+package io.cresco.main;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.HierarchicalINIConfiguration;
