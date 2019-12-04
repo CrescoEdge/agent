@@ -27,6 +27,7 @@ public class HostApplication
     public HostApplication()
     {
 
+
         Map<String,Object> fileConfigMap =  initAgentConfigMap();
 
         agentConfig = new Config(fileConfigMap);
