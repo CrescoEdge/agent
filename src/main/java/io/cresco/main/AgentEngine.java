@@ -23,6 +23,7 @@ public class AgentEngine
         System.setProperty("org.apache.commons.logging.Log",
                 "org.apache.commons.logging.impl.NoOpLog");
 
+
         String configFile = null;
         if(argv.length > 1) {
             configFile =  argv[1];
