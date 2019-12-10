@@ -162,7 +162,6 @@ public class HostApplication
             installInternalBundleJars(bc,"jaxb-core-2.3.0.jar");
             */
 
-
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.16.jar").start();
             installInternalBundleJars(bc,"logger-1.0-SNAPSHOT.jar").start();
 
