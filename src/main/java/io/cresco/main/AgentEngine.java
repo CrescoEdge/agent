@@ -8,7 +8,6 @@ public class AgentEngine
 
     protected static HostApplication ha;
 
-
     public static HostApplication create() throws Exception {
         ha = new HostApplication();
         return ha;
