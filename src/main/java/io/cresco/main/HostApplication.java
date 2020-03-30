@@ -175,8 +175,8 @@ public class HostApplication
 
             if(enableConsole) {
                 installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.6.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.10.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.8.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.16.jar").start();
                 installInternalBundleJars(bc, "org.apache.felix.webconsole-4.3.16-all.jar").start();
             }
 
