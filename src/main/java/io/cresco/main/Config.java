@@ -26,6 +26,7 @@ public class Config {
         this.configMap = Collections.synchronizedMap(new HashMap<>());
         this.configMap.putAll(configMap);
     }
+
     /**
      * Grab configuration entry as Boolean
      * @param param             Entry name to retrieve
