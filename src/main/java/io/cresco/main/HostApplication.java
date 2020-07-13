@@ -175,14 +175,16 @@ public class HostApplication
 
             if(enableConsole) {
                 installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.8.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.16.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.webconsole-4.3.16-all.jar").start();
+                installInternalBundleJars(bc, "commons-io-1.4.jar");
+                installInternalBundleJars(bc, "commons-fileupload-1.4.jar");
+                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.10.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.18.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.webconsole-4.5.2.jar").start();
             }
 
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.2.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.0.jar").start();
-            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.16.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.20.jar").start();
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
 
 
