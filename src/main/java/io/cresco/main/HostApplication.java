@@ -187,8 +187,6 @@ public class HostApplication
             installInternalBundleJars(bc,"org.apache.felix.scr-2.1.20.jar").start();
             installInternalBundleJars(bc,"library-1.0-SNAPSHOT.jar").start();
 
-
-
             coreBundle = installInternalBundleJars(bc,"core-1.0-SNAPSHOT.jar");
             coreBundle.start();
 
