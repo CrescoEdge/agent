@@ -193,9 +193,6 @@ public class HostApplication
             controllerBundle = installInternalBundleJars(bc,"controller-1.0-SNAPSHOT.jar");
             controllerBundle.start();
 
-
-
-
         }
         catch (Exception ex)
         {
