@@ -5,8 +5,7 @@ The main heading
 .. meta::
    :description: This chapter describes how to edit, update, and build the Pyramid documentation.
    :keywords: Pyramid, Style Guide
-   
-   
+
 Introduction
 ------------
 
