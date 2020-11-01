@@ -14,6 +14,8 @@ This chapter is an introduction.
 This is the first sentence in a paragraph.
 This is the second sentence in a paragraph.
 
+Test on autoupdate hook
+
 This is a new paragraph.
 
 .. toctree::
