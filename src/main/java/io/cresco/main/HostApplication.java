@@ -162,7 +162,7 @@ public class HostApplication
             */
 
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.16.jar").start();
-            installInternalBundleJars(bc,"logger-1.1-SNAPSHOT.jar").start();
+            installInternalBundleJars(bc,"logger-1.0.0.jar").start();
 
             installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.2.jar").start();
 
@@ -185,12 +185,12 @@ public class HostApplication
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.2.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.0.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.scr-2.1.20.jar").start();
-            installInternalBundleJars(bc,"library-1.1-SNAPSHOT.jar").start();
+            installInternalBundleJars(bc,"library-1.0.0.jar").start();
 
-            coreBundle = installInternalBundleJars(bc,"core-1.1-SNAPSHOT.jar");
+            coreBundle = installInternalBundleJars(bc,"core-1.0.0.jar");
             coreBundle.start();
 
-            controllerBundle = installInternalBundleJars(bc,"controller-1.1-SNAPSHOT.jar");
+            controllerBundle = installInternalBundleJars(bc,"controller-1.0.0.jar");
             controllerBundle.start();
 
         }
