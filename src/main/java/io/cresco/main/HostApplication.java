@@ -3,7 +3,7 @@ package io.cresco.main;
 import org.apache.felix.framework.Felix;
 import org.apache.felix.framework.util.FelixConstants;
 import org.osgi.framework.*;
-import org.osgi.service.cm.ConfigurationAdmin;
+//import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.util.tracker.ServiceTracker;
 
 import java.io.File;
@@ -40,6 +40,7 @@ public class HostApplication
         //configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*,javax.xml.*");
         //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,javax.xml.*");
 
+        configMap.put("felix.log.level","1");
         configMap.put("felix.systempackages.calculate.uses","true");
         configMap.put("felix.systempackages.substitution","true");
 
@@ -161,10 +162,10 @@ public class HostApplication
             installInternalBundleJars(bc,"jaxb-core-2.3.0.jar");
             */
 
-            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.16.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.20.jar").start();
             installInternalBundleJars(bc,"logger-1.1-SNAPSHOT.jar").start();
 
-            installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.2.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.4.jar").start();
 
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
 
@@ -177,13 +178,13 @@ public class HostApplication
                 installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
                 installInternalBundleJars(bc, "commons-io-1.4.jar");
                 installInternalBundleJars(bc, "commons-fileupload-1.4.jar");
-                installInternalBundleJars(bc, "org.apache.felix.http.base-4.0.10.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.0.18.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.webconsole-4.5.2.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.base-4.1.2.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.1.4.jar").start();
+                installInternalBundleJars(bc, "org.apache.felix.webconsole-4.5.4.jar").start();
             }
 
-            installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.2.jar").start();
-            installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.0.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.4.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.2.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.scr-2.1.20.jar").start();
             installInternalBundleJars(bc,"library-1.1-SNAPSHOT.jar").start();
 
@@ -507,6 +508,7 @@ public class HostApplication
     }
 
 
+    /*
 
     private ConfigurationAdmin getConfigurationAdmin(final BundleContext bundleContext )
     {
@@ -517,5 +519,7 @@ public class HostApplication
         }
         return (ConfigurationAdmin) bundleContext.getService( ref );
     }
+
+     */
 
 }
