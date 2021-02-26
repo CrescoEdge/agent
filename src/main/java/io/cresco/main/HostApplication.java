@@ -20,6 +20,7 @@ public class HostApplication
     private Felix m_felix = null;
     private ServiceTracker m_tracker = null;
     private Config agentConfig = null;
+    private FileConfig versionConfig = null;
     private Bundle coreBundle = null;
     private Bundle controllerBundle = null;
     private Bundle httpBundle = null;
@@ -28,6 +29,8 @@ public class HostApplication
     {
 
         Map<String,Object> fileConfigMap =  initAgentConfigMap();
+
+        versionConfig =  initVersionFileConfig();
 
         agentConfig = new Config(fileConfigMap);
 
@@ -191,6 +194,8 @@ public class HostApplication
             coreBundle = installInternalBundleJars(bc,"core-1.1-SNAPSHOT.jar");
             coreBundle.start();
 
+            String controllerString = "controller-1.1-SNAPSHOT.jar";
+            versionConfig.getStringParams(controllerString,"jarfile");
             controllerBundle = installInternalBundleJars(bc,"controller-1.1-SNAPSHOT.jar");
             controllerBundle.start();
 
@@ -375,6 +380,34 @@ public class HostApplication
             System.exit(0);
         }
         return configParams;
+    }
+
+    private FileConfig initVersionFileConfig() {
+        FileConfig config = null;
+        try {
+
+            String versionConfig = System.getProperty("versionConfig");
+
+
+            if (versionConfig == null) {
+                versionConfig = "conf/version.ini";
+            }
+
+
+            File configFile = new File(versionConfig);
+
+            if (configFile.isFile()) {
+
+                //Agent Config
+                config = new FileConfig(configFile.getAbsolutePath());
+
+            }
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(0);
+        }
+        return config;
     }
 
 
