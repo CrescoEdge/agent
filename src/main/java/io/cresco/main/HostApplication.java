@@ -22,7 +22,7 @@ public class HostApplication
     private Config agentConfig = null;
     private FileConfig versionConfig = null;
     private Bundle coreBundle = null;
-    private Bundle controllerBundle = null;
+    //private Bundle controllerBundle = null;
     private Bundle httpBundle = null;
 
     public HostApplication()
@@ -107,7 +107,7 @@ public class HostApplication
 
                         }
 
-
+                        Bundle controllerBundle = getController();
                         if(controllerBundle != null) {
                              controllerBundle.stop();
                         }
@@ -206,16 +206,16 @@ public class HostApplication
             }
             String internalController = "controller-1.1-SNAPSHOT.jar";
             if (controllerVerion == null) {
-                controllerBundle = installInternalBundleJars(bc, internalController);
+                Bundle controllerBundle = installInternalBundleJars(bc, internalController);
                 controllerBundle.start();
             } else {
                 try {
-                    controllerBundle = installExternalBundleJars(bc, controllerVerion);
+                    Bundle controllerBundle = installExternalBundleJars(bc, controllerVerion);
                     controllerBundle.start();
                 } catch (Exception ex) {
                     ex.printStackTrace();
                     //fall back to internal
-                    controllerBundle = installInternalBundleJars(bc, internalController);
+                    Bundle controllerBundle = installInternalBundleJars(bc, internalController);
                     controllerBundle.start();
                 }
             }
@@ -559,6 +559,28 @@ public class HostApplication
             ex.printStackTrace();
         }
         return isStarted;
+    }
+
+    public Bundle getController()  {
+        Bundle controllerBundle = null;
+        try {
+
+            BundleContext bundleContext = m_felix.getBundleContext();
+
+            for (Bundle bundle : bundleContext.getBundles()) {
+
+                String bundleName = bundle.getSymbolicName();
+                if (bundleName != null) {
+                    if (bundleName.equals("io.cresco.controller")) {
+                        controllerBundle = bundle;
+                    }
+                }
+            }
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return controllerBundle;
     }
 
 
