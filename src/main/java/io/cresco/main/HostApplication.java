@@ -194,10 +194,32 @@ public class HostApplication
             coreBundle = installInternalBundleJars(bc,"core-1.1-SNAPSHOT.jar");
             coreBundle.start();
 
-            String controllerString = "controller-1.1-SNAPSHOT.jar";
-            versionConfig.getStringParams(controllerString,"jarfile");
-            controllerBundle = installInternalBundleJars(bc,"controller-1.1-SNAPSHOT.jar");
-            controllerBundle.start();
+
+            String pluginName = "io.cresco.controller";
+            String controllerVerion = null;
+            try {
+                if(versionConfig != null) {
+                    controllerVerion = versionConfig.getStringParams(pluginName, "jarfile");
+                }
+            } catch (Exception ex){
+                ex.printStackTrace();
+            }
+            String internalController = "controller-1.1-SNAPSHOT.jar";
+            if (controllerVerion == null) {
+                controllerBundle = installInternalBundleJars(bc, internalController);
+                controllerBundle.start();
+            } else {
+                try {
+                    controllerBundle = installExternalBundleJars(bc, controllerVerion);
+                    controllerBundle.start();
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    //fall back to internal
+                    controllerBundle = installInternalBundleJars(bc, internalController);
+                    controllerBundle.start();
+                }
+            }
+
 
         }
         catch (Exception ex)
@@ -207,7 +229,6 @@ public class HostApplication
         }
 
     }
-
 
     private Bundle installInternalBundleJars(BundleContext context, String bundleName) {
 
