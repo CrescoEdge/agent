@@ -176,9 +176,9 @@ public class HostApplication
             installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
             installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
 
-
+            installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
             if(enableConsole) {
-                installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
+
                 installInternalBundleJars(bc, "commons-io-1.4.jar");
                 installInternalBundleJars(bc, "commons-fileupload-1.4.jar");
                 installInternalBundleJars(bc, "org.apache.felix.http.base-4.1.2.jar").start();
