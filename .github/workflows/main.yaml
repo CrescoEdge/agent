@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: 'SONATYPE CRED'
+    environment: 'CRED'
 
     steps:
       - uses: actions/checkout@v2
@@ -18,3 +18,28 @@ jobs:
         run: bash prebuild.sh
       - name: Build with Maven
         run: mvn package -Dmaven.test.skip=true
+
+      - name: Create Draft Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: 'tag'
+          release_name: 'release'
+          draft: true
+          prerelease: false
+      - uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/agent-1.1-SNAPSHOT.jar
+          asset_name: agent-1.1-SNAPSHOT.jar
+          asset_content_type: application/jar
+
+        - uses: eregon/publish-release@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            release_id: ${{ steps.create_release.outputs.id }}
