@@ -35,7 +35,6 @@ public class AgentEngine
             System.setProperty("agentConfig", agentConfig.getAbsolutePath());
         }
 
-
         try {
             AgentEngine.create();
 
