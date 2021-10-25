@@ -13,6 +13,7 @@ public class AgentEngine
         return ha;
     }
 
+
     public static HostApplication getHa() {
         return ha;
     }
