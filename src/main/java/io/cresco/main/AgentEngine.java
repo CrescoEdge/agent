@@ -30,6 +30,7 @@ public class AgentEngine
            configFile = "agent.ini";
         }
 
+
         File agentConfig = new File(configFile);
         if(agentConfig.isFile()) {
             System.setProperty("agentConfig", agentConfig.getAbsolutePath());
