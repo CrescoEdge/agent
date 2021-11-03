@@ -194,7 +194,6 @@ public class HostApplication
             coreBundle = installInternalBundleJars(bc,"core-1.1-SNAPSHOT.jar");
             coreBundle.start();
 
-
             String pluginName = "io.cresco.controller";
             String controllerVerion = null;
             try {
