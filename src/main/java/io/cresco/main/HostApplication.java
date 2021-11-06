@@ -13,6 +13,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import java.nio.file.Files;
 
 public class HostApplication
 {
@@ -53,8 +57,13 @@ public class HostApplication
         // make sure the cache is cleaned
         configMap.put(Constants.FRAMEWORK_STORAGE_CLEAN, Constants.FRAMEWORK_STORAGE_CLEAN_ONFIRSTINIT);
         //set storage location
-        configMap.put(Constants.FRAMEWORK_STORAGE, "cresco-data/felix-cache");
-
+        String cresco_data_location = System.getProperty("cresco_data_location");
+        if(cresco_data_location != null) {
+            Path path = Paths.get(cresco_data_location, "felix-cache");
+            configMap.put(Constants.FRAMEWORK_STORAGE, path.toAbsolutePath().normalize().toString());
+        } else {
+            configMap.put(Constants.FRAMEWORK_STORAGE, "cresco-data/felix-cache");
+        }
 
         //config.put(FRAMEWORK_SYSTEMPACKAGES_EXTRA, this.systemPackages.toString());
 
@@ -111,6 +120,33 @@ public class HostApplication
                         if(controllerBundle != null) {
                              controllerBundle.stop();
                         }
+
+                        //try and remove data here if needed
+                        String tmp_data = System.getProperty("tmp_data");
+                        if(tmp_data == null) {
+                            tmp_data = System.getenv("CRESCO_tmp_data");
+                        }
+                        if(tmp_data != null) {
+                            boolean isTmpData = false;
+                            try {
+                                isTmpData = Boolean.parseBoolean(tmp_data);
+                            } catch (Exception ex) {
+                                //eat it
+                            }
+                            if(isTmpData) {
+                                //generate location and set envs
+                                String tmp_dir = System.getProperty("java.io.tmpdir");
+                                UUID uuid = UUID.randomUUID();
+                                Path path = Paths.get(System.getProperty("cresco_data_location"));
+
+                                Files.walk(path)
+                                        .map(Path::toFile)
+                                        .sorted((o1, o2) -> -o1.compareTo(o2))
+                                        .forEach(File::delete);
+
+                            }
+                        }
+
 
                     } catch (Exception ex) {
                         System.out.println("Shutdown Exception");
@@ -306,6 +342,38 @@ public class HostApplication
                 config = new FileConfig(configFile.getAbsolutePath());
                 configParams = config.getConfigMap();
 
+            }
+
+            //there are cases where we want to change the log directory, this must be sent in the env
+            String tmp_data = System.getProperty("tmp_data");
+            if(tmp_data == null) {
+                tmp_data = System.getenv("CRESCO_tmp_data");
+            }
+            if(tmp_data != null) {
+                boolean isTmpData = false;
+                try {
+                    isTmpData = Boolean.parseBoolean(tmp_data);
+                } catch (Exception ex) {
+                    //eat it
+                }
+                if(isTmpData) {
+                    //generate location and set envs
+                    String tmp_dir = System.getProperty("java.io.tmpdir");
+                    UUID uuid = UUID.randomUUID();
+                    Path path = Paths.get(tmp_dir, uuid.toString());
+
+                    System.setProperty("cresco_data_location", path.toAbsolutePath().normalize().toString());
+                    System.out.println(System.getProperty("cresco_data_location"));
+                }
+            }
+
+            //create set directory if it does not exist
+            String cresco_data_directory = System.getProperty("cresco_data_location");
+            if(cresco_data_directory != null) {
+                Path path = Paths.get(cresco_data_directory);
+                if (!Files.exists(path)) {
+                    Files.createDirectory(path);
+                }
             }
 
             /*
