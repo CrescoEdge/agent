@@ -344,6 +344,7 @@ public class HostApplication
 
             }
 
+
             //there are cases where we want to change the log directory, this must be sent in the env
             String tmp_data = System.getProperty("tmp_data");
             if(tmp_data == null) {
