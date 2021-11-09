@@ -128,6 +128,7 @@ public class HostApplication
                             }
                         }
 
+
                         Bundle controllerBundle = getController();
                         if(controllerBundle != null) {
                             controllerBundle.stop();
