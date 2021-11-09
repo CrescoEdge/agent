@@ -141,7 +141,6 @@ public class HostApplication
                             }
                         }
 
-
                         shutdownApplication();
 
                         //try and remove data here if needed
