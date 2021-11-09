@@ -144,10 +144,8 @@ public class HostApplication
                         shutdownApplication();
 
                         //try and remove data here if needed
-                        String tmp_data = System.getProperty("tmp_data");
-                        if(tmp_data == null) {
-                            tmp_data = System.getenv("CRESCO_tmp_data");
-                        }
+                        String tmp_data = agentConfig.getStringParam("tmp_data");
+
                         if(tmp_data != null) {
                             boolean isTmpData = false;
                             try {
@@ -371,6 +369,9 @@ public class HostApplication
             String tmp_data = System.getProperty("tmp_data");
             if(tmp_data == null) {
                 tmp_data = System.getenv("CRESCO_tmp_data");
+                if(tmp_data == null) {
+                    tmp_data = config.getStringParams("general", "tmp_data");
+                }
             }
             if(tmp_data != null) {
                 boolean isTmpData = false;
