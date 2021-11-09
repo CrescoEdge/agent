@@ -417,7 +417,6 @@ public class HostApplication
                     Path path = Paths.get(tmp_dir, uuid.toString());
 
                     System.setProperty("cresco_data_location", path.toAbsolutePath().normalize().toString());
-                    System.out.println(System.getProperty("cresco_data_location"));
 
                     //this is to prevent derby from logging, which holds onto the log file and prevents it from being removed
                     System.setProperty("derby.stream.error.method", "io.cresco.agent.db.DBLogger.disableDerbyLogFile");
