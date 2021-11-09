@@ -30,6 +30,9 @@ public class HostApplication
     private Bundle httpBundle = null;
     private Bundle loggerBundle = null;
     private Bundle libraryBundle = null;
+    private Bundle consoleBundle = null;
+    private Bundle jettyBundle = null;
+    private Bundle baseBundle = null;
 
     public HostApplication()
     {
@@ -52,6 +55,9 @@ public class HostApplication
         configMap.put("felix.log.level","1");
         configMap.put("felix.systempackages.calculate.uses","true");
         configMap.put("felix.systempackages.substitution","true");
+        configMap.put("ds.showtrace", "false");
+        configMap.put("ds.showerrors", "false");
+
 
         configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*");
         configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*");
@@ -70,10 +76,7 @@ public class HostApplication
         //config.put(FRAMEWORK_SYSTEMPACKAGES_EXTRA, this.systemPackages.toString());
 
         // more properties available at: http://felix.apache.org/documentation/subprojects/apache-felix-service-component-runtime.html
-        configMap.put("ds.showtrace", "true");
-        configMap.put("ds.showerrors", "true");
 
-        configMap.put("felix.log.level","1");
 
         String httpPort = System.getProperty("port");
         if(httpPort == null) {
@@ -103,9 +106,27 @@ public class HostApplication
                 public void run()
                 {
                     try {
-                         if (httpBundle != null) {
-                             httpBundle.stop();
-                         }
+
+                        if(consoleBundle != null) {
+                            consoleBundle.stop();
+                            while(consoleBundle.getState() != 4) {
+                                Thread.sleep(100);
+                            }
+                        }
+
+                        if(jettyBundle != null) {
+                            jettyBundle.stop();
+                            while(jettyBundle.getState() != 4) {
+                                Thread.sleep(100);
+                            }
+                        }
+
+                        if(baseBundle != null) {
+                            baseBundle.stop();
+                            while(baseBundle.getState() != 4) {
+                                Thread.sleep(100);
+                            }
+                        }
 
                         Bundle controllerBundle = getController();
                         if(controllerBundle != null) {
@@ -159,12 +180,12 @@ public class HostApplication
                                 String tmp_dir = System.getProperty("java.io.tmpdir");
                                 Path path = Paths.get(System.getProperty("cresco_data_location"));
 
-                                while(path.toFile().exists()){
+                                //while(path.toFile().exists()){
                                     Files.walk(path)
                                             .map(Path::toFile)
                                             .sorted((o1, o2) -> -o1.compareTo(o2))
                                             .forEach(File::delete);
-                                }
+                                //}
                             }
                         }
 
@@ -238,10 +259,16 @@ public class HostApplication
 
                 installInternalBundleJars(bc, "commons-io-1.4.jar");
                 installInternalBundleJars(bc, "commons-fileupload-1.4.jar");
-                installInternalBundleJars(bc, "org.apache.felix.http.base-4.1.2.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.1.4.jar").start();
-                installInternalBundleJars(bc, "org.apache.felix.webconsole-4.5.4.jar").start();
+                baseBundle = installInternalBundleJars(bc, "org.apache.felix.http.base-4.1.2.jar");
+                baseBundle.start();
+
+                jettyBundle = installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.1.4.jar");
+                jettyBundle.start();
+
+                consoleBundle = installInternalBundleJars(bc, "org.apache.felix.webconsole-4.5.4.jar");
+                consoleBundle.start();
             }
+
 
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.4.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.2.jar").start();
@@ -389,6 +416,10 @@ public class HostApplication
 
                     System.setProperty("cresco_data_location", path.toAbsolutePath().normalize().toString());
                     System.out.println(System.getProperty("cresco_data_location"));
+
+                    //this is to prevent derby from logging, which holds onto the log file and prevents it from being removed
+                    System.setProperty("derby.stream.error.method", "io.cresco.agent.db.DBLogger.disableDerbyLogFile");
+
                 }
             }
 
