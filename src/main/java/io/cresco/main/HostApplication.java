@@ -29,6 +29,7 @@ public class HostApplication
     //private Bundle controllerBundle = null;
     private Bundle httpBundle = null;
     private Bundle loggerBundle = null;
+    private Bundle libraryBundle = null;
 
     public HostApplication()
     {
@@ -102,10 +103,18 @@ public class HostApplication
                 public void run()
                 {
                     try {
-
                          if (httpBundle != null) {
                              httpBundle.stop();
                          }
+
+                        Bundle controllerBundle = getController();
+                        if(controllerBundle != null) {
+                            controllerBundle.stop();
+
+                            while(controllerBundle.getState() != 4) {
+                                Thread.sleep(100);
+                            }
+                        }
 
                         if(coreBundle != null) {
 
@@ -116,15 +125,23 @@ public class HostApplication
                              }
 
                         }
+                        //controller, core, library, logger
 
-                        Bundle controllerBundle = getController();
-                        if(controllerBundle != null) {
-                             controllerBundle.stop();
+                        if(libraryBundle != null) {
+                            libraryBundle.stop();
+                            while(libraryBundle.getState() != 4) {
+                                Thread.sleep(100);
+                            }
                         }
 
                         if(loggerBundle != null) {
                             loggerBundle.stop();
+                            while(loggerBundle.getState() != 4) {
+                                Thread.sleep(100);
+                            }
                         }
+
+                        shutdownApplication();
 
                         //try and remove data here if needed
                         String tmp_data = System.getProperty("tmp_data");
@@ -230,7 +247,8 @@ public class HostApplication
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.4.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.2.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.scr-2.1.20.jar").start();
-            installInternalBundleJars(bc,"library-1.1-SNAPSHOT.jar").start();
+            libraryBundle = installInternalBundleJars(bc,"library-1.1-SNAPSHOT.jar");
+            libraryBundle.start();
 
             coreBundle = installInternalBundleJars(bc,"core-1.1-SNAPSHOT.jar");
             coreBundle.start();
