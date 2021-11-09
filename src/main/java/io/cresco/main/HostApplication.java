@@ -156,14 +156,14 @@ public class HostApplication
                             if(isTmpData) {
                                 //generate location and set envs
                                 String tmp_dir = System.getProperty("java.io.tmpdir");
-                                UUID uuid = UUID.randomUUID();
                                 Path path = Paths.get(System.getProperty("cresco_data_location"));
 
-                                Files.walk(path)
-                                        .map(Path::toFile)
-                                        .sorted((o1, o2) -> -o1.compareTo(o2))
-                                        .forEach(File::delete);
-
+                                while(path.toFile().exists()){
+                                    Files.walk(path)
+                                            .map(Path::toFile)
+                                            .sorted((o1, o2) -> -o1.compareTo(o2))
+                                            .forEach(File::delete);
+                                }
                             }
                         }
 
