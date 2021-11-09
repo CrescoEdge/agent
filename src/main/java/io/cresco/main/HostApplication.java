@@ -424,7 +424,6 @@ public class HostApplication
                 }
             }
 
-
             //create set directory if it does not exist
             String cresco_data_directory = System.getProperty("cresco_data_location");
             if(cresco_data_directory != null) {
