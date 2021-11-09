@@ -205,7 +205,6 @@ public class HostApplication
             installInternalBundleJars(bc,"logger-1.1-SNAPSHOT.jar").start();
 
             installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.4.jar").start();
-
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
 
 
