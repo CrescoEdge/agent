@@ -28,6 +28,7 @@ public class HostApplication
     private Bundle coreBundle = null;
     //private Bundle controllerBundle = null;
     private Bundle httpBundle = null;
+    private Bundle loggerBundle = null;
 
     public HostApplication()
     {
@@ -121,6 +122,10 @@ public class HostApplication
                              controllerBundle.stop();
                         }
 
+                        if(loggerBundle != null) {
+                            loggerBundle.stop();
+                        }
+
                         //try and remove data here if needed
                         String tmp_data = System.getProperty("tmp_data");
                         if(tmp_data == null) {
@@ -202,7 +207,8 @@ public class HostApplication
             */
 
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.20.jar").start();
-            installInternalBundleJars(bc,"logger-1.1-SNAPSHOT.jar").start();
+            loggerBundle = installInternalBundleJars(bc,"logger-1.1-SNAPSHOT.jar");
+            loggerBundle.start();
 
             installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.4.jar").start();
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
