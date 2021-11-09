@@ -181,6 +181,7 @@ public class HostApplication
                                 String tmp_dir = System.getProperty("java.io.tmpdir");
                                 Path path = Paths.get(System.getProperty("cresco_data_location"));
 
+
                                 //while(path.toFile().exists()){
                                     Files.walk(path)
                                             .map(Path::toFile)
