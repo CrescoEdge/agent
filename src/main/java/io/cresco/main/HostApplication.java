@@ -291,21 +291,32 @@ public class HostApplication
                 ex.printStackTrace();
             }
             String internalController = "controller-1.1-SNAPSHOT.jar";
-            if (controllerVerion == null) {
-                Bundle controllerBundle = installInternalBundleJars(bc, internalController);
-                controllerBundle.start();
-            } else {
+
+            Bundle controllerBundle = null;
+
+            if (controllerVerion != null) {
+
                 try {
-                    Bundle controllerBundle = installExternalBundleJars(bc, controllerVerion);
-                    controllerBundle.start();
+                    controllerBundle = installExternalBundleJars(bc, controllerVerion);
+                    if(controllerBundle.getState() == 2) {
+                        controllerBundle.start();
+                        if(controllerBundle.getState() != 32) {
+                            controllerBundle.stop();
+                            controllerBundle.uninstall();
+                            controllerBundle = null;
+                        }
+                    }
+
                 } catch (Exception ex) {
                     ex.printStackTrace();
-                    //fall back to internal
-                    Bundle controllerBundle = installInternalBundleJars(bc, internalController);
-                    controllerBundle.start();
+                    controllerBundle = null;
                 }
             }
 
+            if(controllerBundle == null) {
+                controllerBundle = installInternalBundleJars(bc, internalController);
+                controllerBundle.start();
+            }
 
         }
         catch (Exception ex)
