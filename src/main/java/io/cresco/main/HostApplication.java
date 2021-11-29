@@ -413,7 +413,9 @@ public class HostApplication
             if(tmp_data == null) {
                 tmp_data = System.getenv("CRESCO_tmp_data");
                 if(tmp_data == null) {
-                    tmp_data = config.getStringParams("general", "tmp_data");
+                    if(config != null) {
+                        tmp_data = config.getStringParams("general", "tmp_data");
+                    }
                 }
             }
             if(tmp_data != null) {
