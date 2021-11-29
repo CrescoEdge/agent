@@ -377,7 +377,7 @@ public class HostApplication
         if(installedBundle == null) {
             System.out.println("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
 
-            System.exit(0);
+            //System.exit(0);
         }
 
         return installedBundle;
