@@ -290,6 +290,8 @@ public class HostApplication
             } catch (Exception ex){
                 ex.printStackTrace();
             }
+
+
             String internalController = "controller-1.1-SNAPSHOT.jar";
 
             Bundle controllerBundle = null;
