@@ -181,15 +181,10 @@ public class HostApplication
                                 //String tmp_dir = System.getProperty("java.io.tmpdir");
                                 Path path = Paths.get(System.getProperty("cresco_data_location"));
 
-                                //while(path.toFile().exists()){
-                                    Files.walk(path)
-                                            .map(Path::toFile)
-                                            .sorted((o1, o2) -> -o1.compareTo(o2))
-                                            .forEach(File::delete);
-                                //}
-
-                                //System.out.print(path.toString());
-                                //deleteDirectory(path.toFile());
+                                Files.walk(path)
+                                        .map(Path::toFile)
+                                        .sorted((o1, o2) -> -o1.compareTo(o2))
+                                        .forEach(File::delete);
                             }
                         }
 
@@ -725,18 +720,7 @@ public class HostApplication
         return controllerBundle;
     }
 
-    boolean deleteDirectory(Path pathToBeDeleted) {
 
-
-        Files.walk(pathToBeDeleted)
-                .sorted(Comparator.reverseOrder())
-                .map(Path::toFile)
-                .forEach(File::delete);
-
-        assertFalse("Directory still exists",
-                Files.exists(pathToBeDeleted));
-
-    }
 
 
     /*
