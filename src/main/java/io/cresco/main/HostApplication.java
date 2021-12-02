@@ -178,9 +178,8 @@ public class HostApplication
                             }
                             if(isTmpData) {
                                 //generate location and set envs
-                                String tmp_dir = System.getProperty("java.io.tmpdir");
+                                //String tmp_dir = System.getProperty("java.io.tmpdir");
                                 Path path = Paths.get(System.getProperty("cresco_data_location"));
-
 
                                 //while(path.toFile().exists()){
                                     Files.walk(path)
@@ -188,6 +187,9 @@ public class HostApplication
                                             .sorted((o1, o2) -> -o1.compareTo(o2))
                                             .forEach(File::delete);
                                 //}
+
+                                //System.out.print(path.toString());
+                                //deleteDirectory(path.toFile());
                             }
                         }
 
@@ -427,9 +429,9 @@ public class HostApplication
                 }
                 if(isTmpData) {
                     //generate location and set envs
-                    String tmp_dir = System.getProperty("java.io.tmpdir");
+                    //String tmp_dir = System.getProperty("java.io.tmpdir");
                     UUID uuid = UUID.randomUUID();
-                    Path path = Paths.get(tmp_dir, uuid.toString());
+                    Path path = Paths.get("cresco_data", uuid.toString());
 
                     System.setProperty("cresco_data_location", path.toAbsolutePath().normalize().toString());
 
@@ -444,7 +446,7 @@ public class HostApplication
             if(cresco_data_directory != null) {
                 Path path = Paths.get(cresco_data_directory);
                 if (!Files.exists(path)) {
-                    Files.createDirectory(path);
+                    Files.createDirectories(path);
                 }
             }
 
@@ -721,6 +723,19 @@ public class HostApplication
             ex.printStackTrace();
         }
         return controllerBundle;
+    }
+
+    boolean deleteDirectory(Path pathToBeDeleted) {
+
+
+        Files.walk(pathToBeDeleted)
+                .sorted(Comparator.reverseOrder())
+                .map(Path::toFile)
+                .forEach(File::delete);
+
+        assertFalse("Directory still exists",
+                Files.exists(pathToBeDeleted));
+
     }
 
 
