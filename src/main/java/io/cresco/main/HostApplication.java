@@ -356,6 +356,7 @@ public class HostApplication
 
     private Bundle installExternalBundleJars(BundleContext context, String bundleName) {
 
+        
         Bundle installedBundle = null;
         try {
             //URL bundleURL = new URL("file://" + bundleName);
