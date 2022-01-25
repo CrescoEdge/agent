@@ -196,6 +196,7 @@ public class HostApplication
                 }
             });
 
+
             boolean enableConsole = agentConfig.getBooleanParam("enable_console",Boolean.FALSE);
 
             // Now create an instance of the framework with
