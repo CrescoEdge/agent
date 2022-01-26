@@ -45,6 +45,7 @@ public class HostApplication
 
         //System.out.println("Building OSGi Framework");
 
+
         // Create a configuration property map.
         Map configMap = new HashMap();
         // Export the host provided service interface package.
