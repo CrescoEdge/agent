@@ -59,7 +59,6 @@ public class HostApplication
         configMap.put("ds.showtrace", "false");
         configMap.put("ds.showerrors", "false");
 
-
         configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*");
         configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*");
 
