@@ -53,7 +53,7 @@ public class HostApplication
         //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,javax.xml.*");
 
 
-        
+
         configMap.put("felix.log.level","1");
         configMap.put("felix.systempackages.calculate.uses","true");
         configMap.put("felix.systempackages.substitution","true");
