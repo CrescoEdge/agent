@@ -48,10 +48,11 @@ public class HostApplication
         // Create a configuration property map.
         Map configMap = new HashMap();
         // Export the host provided service interface package.
-        
+
         //configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*,javax.xml.*");
         //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,javax.xml.*");
 
+        
         configMap.put("felix.log.level","1");
         configMap.put("felix.systempackages.calculate.uses","true");
         configMap.put("felix.systempackages.substitution","true");
