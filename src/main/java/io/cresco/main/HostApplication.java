@@ -334,8 +334,7 @@ public class HostApplication
                 String bundlePath = bundleURL.getPath();
                 installedBundle = context.installBundle(bundlePath,
                         getClass().getClassLoader().getResourceAsStream(bundleName));
-
-
+                
             } else {
                 System.out.println("Bundle = null for " + bundleName);
             }
@@ -360,7 +359,7 @@ public class HostApplication
             //if(bundleURL != null) {
 
                 installedBundle = context.installBundle("file://" + bundleName);
-                
+
             //} else {
             //    System.out.println("Bundle = null for " + bundleName);
             //}
