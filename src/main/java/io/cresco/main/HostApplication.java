@@ -353,15 +353,14 @@ public class HostApplication
     }
 
     private Bundle installExternalBundleJars(BundleContext context, String bundleName) {
-        
+
         Bundle installedBundle = null;
         try {
             //URL bundleURL = new URL("file://" + bundleName);
             //if(bundleURL != null) {
 
                 installedBundle = context.installBundle("file://" + bundleName);
-
-
+                
             //} else {
             //    System.out.println("Bundle = null for " + bundleName);
             //}
