@@ -17,7 +17,6 @@ import java.util.UUID;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.nio.file.Files;
-
 public class HostApplication
 {
     private HostActivator m_activator = null;
