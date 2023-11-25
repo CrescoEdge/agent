@@ -19,8 +19,6 @@ import java.nio.file.Path;
 import java.nio.file.Files;
 public class HostApplication {
     private HostActivator m_activator = null;
-
-
     private Felix m_felix = null;
     private ServiceTracker m_tracker = null;
     private Config agentConfig = null;
