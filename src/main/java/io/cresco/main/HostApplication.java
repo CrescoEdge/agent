@@ -31,7 +31,6 @@ public class HostApplication {
     private Bundle consoleBundle = null;
     private Bundle jettyBundle = null;
     private Bundle baseBundle = null;
-
     public HostApplication()
     {
 
