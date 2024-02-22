@@ -56,7 +56,8 @@ public class HostApplication {
         configMap.put("ds.showerrors", "false");
 
         configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*");
-        configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*");
+        //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,");
+        configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,org.graalvm.*");
 
         // make sure the cache is cleaned
         configMap.put(Constants.FRAMEWORK_STORAGE_CLEAN, Constants.FRAMEWORK_STORAGE_CLEAN_ONFIRSTINIT);
