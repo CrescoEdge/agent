@@ -23,7 +23,6 @@ public class HostActivator implements BundleActivator
 
         return m_context;
     }
-
     public Bundle[] getBundles()
     {
         if (m_context != null)
