@@ -227,6 +227,7 @@ public class HostApplication {
                 ex.printStackTrace();
             }
 
+            
             //items to make Java > 8 work, work in progress, does not work
             /*
             installInternalBundleJars(bc,"javax.activation-api-1.2.0.jar");
