@@ -226,7 +226,6 @@ public class HostApplication {
             } catch(Exception ex) {
                 ex.printStackTrace();
             }
-
             
             //items to make Java > 8 work, work in progress, does not work
             /*
