@@ -15,7 +15,6 @@ public class AgentEngine
     public static HostApplication getHa() {
         return ha;
     }
-
     public static void main(String[] argv) {
 
         System.setProperty("org.apache.commons.logging.Log",
