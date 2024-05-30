@@ -12,7 +12,6 @@ public class AgentEngine
         ha = new HostApplication();
         return ha;
     }
-    
     public static HostApplication getHa() {
         return ha;
     }
