@@ -293,7 +293,7 @@ public class HostApplication {
             } catch (Exception ex){
                 ex.printStackTrace();
             }
-            
+
             String internalController = "controller-1.2-SNAPSHOT.jar";
 
             Bundle controllerBundle = null;
@@ -321,6 +321,8 @@ public class HostApplication {
                 controllerBundle = installInternalBundleJars(bc, internalController);
                 controllerBundle.start();
             }
+
+
 
         }
         catch (Exception ex)
