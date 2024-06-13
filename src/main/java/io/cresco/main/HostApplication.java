@@ -239,40 +239,49 @@ public class HostApplication {
             installInternalBundleJars(bc,"jaxb-core-2.3.0.jar");
             */
 
-            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.20.jar").start();
-            loggerBundle = installInternalBundleJars(bc,"logger-1.1-SNAPSHOT.jar");
+            installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.26.jar").start();
+            loggerBundle = installInternalBundleJars(bc,"logger-1.2-SNAPSHOT.jar");
             loggerBundle.start();
 
             installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.4.jar").start();
             installInternalBundleJars(bc,"osgi.cmpn-7.0.0.jar");
 
 
-            installInternalBundleJars(bc,"org.osgi.util.promise-1.1.0.jar");
-            installInternalBundleJars(bc,"org.osgi.util.function-1.1.0.jar");
+            installInternalBundleJars(bc,"org.osgi.util.promise-1.3.0.jar");
+            installInternalBundleJars(bc,"org.osgi.util.function-1.2.0.jar");
 
-            installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-1.1.2.jar").start();
+            installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-3.0.0.jar").start();
+
             if(enableConsole) {
 
-                installInternalBundleJars(bc, "commons-io-1.4.jar");
-                installInternalBundleJars(bc, "commons-fileupload-1.4.jar");
-                baseBundle = installInternalBundleJars(bc, "org.apache.felix.http.base-4.1.2.jar");
+                installInternalBundleJars(bc, "commons-io-2.16.1.jar");
+                installInternalBundleJars(bc, "commons-fileupload-1.5.jar");
+                installInternalBundleJars(bc, "org.osgi.service.useradmin-1.1.1.jar");
+
+                baseBundle = installInternalBundleJars(bc, "org.apache.felix.http.jetty12-1.0.8.jar");
+                baseBundle = installInternalBundleJars(bc, "org.apache.felix.inventory-1.1.0.jar");
+                baseBundle = installInternalBundleJars(bc, "encoder-1.2.3.jar");
+                //baseBundle.start();
+
+                baseBundle = installInternalBundleJars(bc, "org.apache.felix.http.base-5.1.8.jar");
                 baseBundle.start();
 
-                jettyBundle = installInternalBundleJars(bc, "org.apache.felix.http.jetty-4.1.4.jar");
+                jettyBundle = installInternalBundleJars(bc, "org.apache.felix.http.jetty-5.1.16.jar");
                 jettyBundle.start();
 
-                consoleBundle = installInternalBundleJars(bc, "org.apache.felix.webconsole-4.5.4.jar");
+                consoleBundle = installInternalBundleJars(bc, "org.apache.felix.webconsole-5.0.2.jar");
                 consoleBundle.start();
             }
 
 
             installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.4.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.2.jar").start();
-            installInternalBundleJars(bc,"org.apache.felix.scr-2.1.20.jar").start();
-            libraryBundle = installInternalBundleJars(bc,"library-1.1-SNAPSHOT.jar");
+            installInternalBundleJars(bc,"org.apache.felix.scr-2.2.0.jar").start();
+
+            libraryBundle = installInternalBundleJars(bc,"library-1.2-SNAPSHOT.jar");
             libraryBundle.start();
 
-            coreBundle = installInternalBundleJars(bc,"core-1.1-SNAPSHOT.jar");
+            coreBundle = installInternalBundleJars(bc,"core-1.2-SNAPSHOT.jar");
             coreBundle.start();
 
             String pluginName = "io.cresco.controller";
@@ -284,9 +293,8 @@ public class HostApplication {
             } catch (Exception ex){
                 ex.printStackTrace();
             }
-
-
-            String internalController = "controller-1.1-SNAPSHOT.jar";
+            
+            String internalController = "controller-1.2-SNAPSHOT.jar";
 
             Bundle controllerBundle = null;
 

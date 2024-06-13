@@ -6,7 +6,7 @@
 
     <groupId>io.cresco</groupId>
     <artifactId>agent</artifactId>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
 <name>Cresco Agent</name>
@@ -27,9 +27,9 @@
 
 <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jdk>1.8</jdk>
+    <jdk>21</jdk>
     <mojo.buildnumber.version>1.4</mojo.buildnumber.version>
-    <maven.compiler.version>3.8.1</maven.compiler.version>
+    <maven.compiler.version>3.13.0</maven.compiler.version>
 </properties>
 
 
@@ -38,7 +38,7 @@
     <dependency>
         <groupId>org.apache.felix</groupId>
         <artifactId>org.apache.felix.main</artifactId>
-        <version>7.0.0</version>
+        <version>7.0.5</version>
     </dependency>
     <!--
     <dependency>
