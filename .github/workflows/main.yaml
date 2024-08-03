@@ -9,10 +9,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Set up JDK 8
+      - name: Set up JDK 21
         uses: actions/setup-java@v2
         with:
-          java-version: '8'
+          java-version: '21'
           distribution: 'adopt'
       - name: Download Dependencies
         run: bash prebuild.sh
@@ -22,7 +22,7 @@ jobs:
       - uses: dev-drprasad/delete-tag-and-release@v0.2.1
         with:
           delete_release: true # default: false
-          tag_name: '1.1-SNAPSHOT' # tag name to delete
+          tag_name: '1.2-SNAPSHOT' # tag name to delete
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -32,7 +32,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: '1.1-SNAPSHOT'
+          tag_name: '1.2-SNAPSHOT'
           release_name: 'Cresco Agent'
           draft: true
           prerelease: false
@@ -41,8 +41,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/agent-1.1-SNAPSHOT.jar
-          asset_name: agent-1.1-SNAPSHOT.jar
+          asset_path: target/agent-1.2-SNAPSHOT.jar
+          asset_name: agent-1.2-SNAPSHOT.jar
           asset_content_type: application/jar
 
       - uses: eregon/publish-release@v1
