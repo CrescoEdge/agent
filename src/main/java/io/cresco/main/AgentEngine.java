@@ -14,8 +14,13 @@ public class AgentEngine
     public static HostApplication getHa() {
         return ha;
     }
+
     public static void main(String[] argv) {
 
+        // suppress initial pax logging
+        System.setProperty("org.ops4j.pax.logging.DefaultServiceLog.level", "WARN");
+
+        // suppress logging
         System.setProperty("org.apache.commons.logging.Log",
                 "org.apache.commons.logging.impl.NoOpLog");
 
