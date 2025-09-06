@@ -11,12 +11,13 @@ rm src/main/resources/stunnel-1.2-SNAPSHOT.jar
 
 mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:logger:1.2-SNAPSHOT
 mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:core:1.2-SNAPSHOT
-mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:library:1.2-SNAPSHOT
-mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:controller:1.2-SNAPSHOT
 mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:repo:1.2-SNAPSHOT
 mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:sysinfo:1.2-SNAPSHOT
+mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:library:1.2-SNAPSHOT
+mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:controller:1.2-SNAPSHOT
 mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:wsapi:1.2-SNAPSHOT
 mvn org.apache.maven.plugins:maven-dependency-plugin:2.1:get -Dtransitive=false -DrepoUrl=https://central.sonatype.com/repository/maven-snapshots/ -Dartifact=io.cresco:stunnel:1.2-SNAPSHOT
+
 
 cp ~/.m2/repository/io/cresco/logger/1.2-SNAPSHOT/logger-1.2-SNAPSHOT.jar src/main/resources/
 cp ~/.m2/repository/io/cresco/core/1.2-SNAPSHOT/core-1.2-SNAPSHOT.jar src/main/resources/
