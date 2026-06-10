@@ -276,10 +276,10 @@ public class Config {
     public String getConfigAsJSON() {
         StringBuilder sb = new StringBuilder();
         sb.append("{");
-        Iterator it = this.configMap.entrySet().iterator();
+        Iterator<String> it = this.configMap.keySet().iterator();
 
         while (it.hasNext()) {
-            String key = (String)it.next();
+            String key = it.next();
             String value = String.valueOf(this.configMap.get(key));
             sb.append("\"");
             sb.append(key);

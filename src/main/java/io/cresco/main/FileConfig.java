@@ -6,8 +6,12 @@ import org.apache.commons.configuration.SubnodeConfiguration;
 
 import java.io.File;
 import java.util.*;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 public class FileConfig {
+
+    private static final Logger logger = Logger.getLogger(FileConfig.class.getName());
 
     private HierarchicalINIConfiguration iniConfObj;
 
@@ -22,9 +26,9 @@ public class FileConfig {
         SubnodeConfiguration sObj = iniConfObj.getSection("general");
         //final Map<String,String> result=new TreeMap<String,String>();
         StringBuilder sb = new StringBuilder();
-        final Iterator it = sObj.getKeys();
+        final Iterator<String> it = sObj.getKeys();
         while (it.hasNext()) {
-            final Object key = it.next();
+            final String key = it.next();
             final String value = sObj.getString(key.toString());
             //result.put(key.toString(),value);
             sb.append(key.toString() + "=" + value + ",");
@@ -45,9 +49,9 @@ public class FileConfig {
         SubnodeConfiguration sObj = iniConfObj.getSection(section);
         //final Map<String,String> result=new TreeMap<String,String>();
         //StringBuilder sb = new StringBuilder();
-        final Iterator it = sObj.getKeys();
+        final Iterator<String> it = sObj.getKeys();
         while (it.hasNext()) {
-            final Object key = it.next();
+            final String key = it.next();
             final Object value = sObj.getString(key.toString());
             configMap.put(key.toString(),value);
             //result.put(key.toString(),value);
@@ -64,9 +68,9 @@ public class FileConfig {
 
         List<String> enabledPlugins = new ArrayList<>();
         SubnodeConfiguration sObj = iniConfObj.getSection("plugins");
-        Iterator it = sObj.getKeys();
+        Iterator<String> it = sObj.getKeys();
         while (it.hasNext()) {
-            Object key = it.next();
+            String key = it.next();
             int value = 0;
             value = Integer.parseInt(sObj.getString(key.toString()));
             if (value == isEnabled) {
@@ -82,7 +86,7 @@ public class FileConfig {
             SubnodeConfiguration sObj = iniConfObj.getSection(section);
             return_param = Integer.parseInt(sObj.getString(param));
         } catch (Exception ex) {
-            System.out.println("AgentEngine : Config : Error : " + ex.toString());
+            logger.log(Level.SEVERE, "AgentEngine : Config : Error", ex);
         }
         return return_param;
     }
@@ -93,7 +97,7 @@ public class FileConfig {
             SubnodeConfiguration sObj = iniConfObj.getSection(section);
             return_param = sObj.getString(param);
         } catch (Exception ex) {
-            System.out.println("AgentEngine : Config : Error : " + ex.toString());
+            logger.log(Level.SEVERE, "AgentEngine : Config : Error", ex);
         }
         return return_param;
     }

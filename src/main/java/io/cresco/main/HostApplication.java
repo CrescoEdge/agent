@@ -17,7 +17,12 @@ import java.util.UUID;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.nio.file.Files;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
 public class HostApplication {
+
+    private static final Logger logger = Logger.getLogger(HostApplication.class.getName());
     private HostActivator m_activator = null;
     private Felix m_felix = null;
     private ServiceTracker m_tracker = null;
@@ -43,7 +48,7 @@ public class HostApplication {
         //System.out.println("Building OSGi Framework");
 
         // Create a configuration property map.
-        Map configMap = new HashMap();
+        Map<String, Object> configMap = new HashMap<>();
         // Export the host provided service interface package.
 
         //configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*,javax.xml.*");
@@ -92,7 +97,7 @@ public class HostApplication {
         // Create host activator;
         m_activator = new HostActivator();
 
-        List list = new ArrayList();
+        List<Object> list = new ArrayList<>();
         list.add(m_activator);
         configMap.put(FelixConstants.SYSTEMBUNDLE_ACTIVATORS_PROP, list);
 
@@ -188,8 +193,7 @@ public class HostApplication {
 
 
                     } catch (Exception ex) {
-                        System.out.println("Shutdown Exception");
-                        ex.printStackTrace();
+                        logger.log(Level.SEVERE, "Shutdown Exception", ex);
                     }
                 }
             });
@@ -327,8 +331,7 @@ public class HostApplication {
         }
         catch (Exception ex)
         {
-            System.err.println("Could not create framework: " + ex);
-            ex.printStackTrace();
+            logger.log(Level.SEVERE, "Could not create framework", ex);
         }
 
     }
@@ -345,14 +348,14 @@ public class HostApplication {
                         getClass().getClassLoader().getResourceAsStream(bundleName));
                 
             } else {
-                System.out.println("Bundle = null for " + bundleName);
+                logger.warning("Bundle = null for " + bundleName);
             }
         } catch(Exception ex) {
             ex.printStackTrace();
         }
 
         if(installedBundle == null) {
-            System.out.println("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
+            logger.severe("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
 
             System.exit(0);
         }
@@ -377,7 +380,7 @@ public class HostApplication {
         }
 
         if(installedBundle == null) {
-            System.out.println("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
+            logger.severe("installExternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
 
             //System.exit(0);
         }
@@ -507,10 +510,10 @@ public class HostApplication {
                 try {
                     location = InetAddress.getLocalHost().getHostName();
                     if (location != null) {
-                        //logger.info("Location set: " + location);
+                        logger.info("Location set: " + location);
                     }
                 } catch (Exception ex) {
-                    //logger.error("getLocalHost() Failed : " + ex.getMessage());
+                    logger.log(Level.SEVERE, "getLocalHost() Failed", ex);
                 }
 
                 if (location == null) {
@@ -524,12 +527,12 @@ public class HostApplication {
                         }
 
                         if (location != null) {
-                            //logger.info("Location set env: " + location);
+                            logger.info("Location set env: " + location);
                         }
 
                     } catch (Exception exx) {
                         //do nothing
-                        //logger.error("Get System Env Failed : " + exx.getMessage());
+                        logger.log(Level.SEVERE, "Get System Env Failed", exx);
                     }
                 }
             }
@@ -587,10 +590,10 @@ public class HostApplication {
                         return true;
                     }
                 } else {
-                    System.out.println("bundle not ready");
+                    logger.warning("bundle not ready");
                 }
             } else {
-                System.out.println("startInternalBundleJars Bundle = null ");
+                logger.warning("startInternalBundleJars Bundle = null ");
             }
 
         } catch(Exception ex) {
@@ -625,12 +628,12 @@ public class HostApplication {
     public void printb() {
         for (Bundle bundle : m_activator.getBundles()) {
             if (bundle.getHeaders().get(Constants.FRAGMENT_HOST) == null) {
-                System.out.println("state:" + getState(bundle.getState()));
-                System.out.println("id:" + bundle.getBundleId());
-                System.out.println("location:" + bundle.getLocation());
-                System.out.println("version:" + bundle.getVersion());
+                logger.info("state:" + getState(bundle.getState()));
+                logger.info("id:" + bundle.getBundleId());
+                logger.info("location:" + bundle.getLocation());
+                logger.info("version:" + bundle.getVersion());
 
-                System.out.println("---");
+                logger.info("---");
             }
         }
     }
@@ -682,7 +685,7 @@ public class HostApplication {
                 } else {
                     //System.out.println("Running Service Count: " + servRefs.length);
 
-                    for (ServiceReference sr : servRefs) {
+                    for (ServiceReference<?> sr : servRefs) {
 
                         boolean assign = servRefs[0].isAssignableTo(context.getBundle(), className);
 
@@ -695,7 +698,7 @@ public class HostApplication {
                 Thread.sleep(1000);
             }
             if(servRefs == null) {
-                System.out.println("COULD NOT START PLUGIN COULD NOT GET SERVICE");
+                logger.severe("COULD NOT START PLUGIN COULD NOT GET SERVICE");
             }
         } catch (Exception ex) {
             ex.printStackTrace();

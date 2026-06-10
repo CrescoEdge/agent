@@ -1,9 +1,13 @@
 package io.cresco.main;
 
 import java.io.File;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 public class AgentEngine
 {
+
+    private static final Logger logger = Logger.getLogger(AgentEngine.class.getName());
 
     protected static HostApplication ha;
     public static HostApplication create() throws Exception {
@@ -37,10 +41,11 @@ public class AgentEngine
 
 
         try {
+            logger.info("Starting Cresco AgentEngine...");
             AgentEngine.create();
 
         } catch (Exception ex) {
-            ex.printStackTrace();
+            logger.log(Level.SEVERE, "AgentEngine failed to start", ex);
         }
 
     }
