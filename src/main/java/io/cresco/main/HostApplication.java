@@ -1,8 +1,8 @@
 package io.cresco.main;
 
-import org.apache.felix.framework.Felix;
-import org.apache.felix.framework.util.FelixConstants;
 import org.osgi.framework.*;
+import org.osgi.framework.launch.Framework;
+import org.osgi.framework.launch.FrameworkFactory;
 //import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.util.tracker.ServiceTracker;
 
@@ -13,13 +13,26 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.UUID;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.nio.file.Files;
 public class HostApplication {
+
+    /**
+     * Felix-specific framework property carrying a List of BundleActivator instances that are
+     * started/stopped with the system bundle. This is the documented Felix config key (formerly
+     * referenced via the impl-only constant FelixConstants.SYSTEMBUNDLE_ACTIVATORS_PROP); using
+     * the string keeps the launcher off the org.apache.felix.framework.* implementation classes.
+     */
+    private static final String SYSTEMBUNDLE_ACTIVATORS_PROP = "felix.systembundle.activators";
+
+    /** Max time to wait for a bundle to reach RESOLVED during shutdown before giving up. */
+    private static final long BUNDLE_STOP_TIMEOUT_MS = 10_000L;
+
     private HostActivator m_activator = null;
-    private Felix m_felix = null;
+    private Framework m_felix = null;
     private ServiceTracker m_tracker = null;
     private Config agentConfig = null;
     private FileConfig versionConfig = null;
@@ -94,7 +107,7 @@ public class HostApplication {
 
         List list = new ArrayList();
         list.add(m_activator);
-        configMap.put(FelixConstants.SYSTEMBUNDLE_ACTIVATORS_PROP, list);
+        configMap.put(SYSTEMBUNDLE_ACTIVATORS_PROP, list);
 
         try {
 
@@ -105,61 +118,16 @@ public class HostApplication {
                 {
                     try {
 
-                        if(consoleBundle != null) {
-                            consoleBundle.stop();
-                            while(consoleBundle.getState() != 4) {
-                                Thread.sleep(100);
-                            }
-                        }
-
-                        if(jettyBundle != null) {
-                            jettyBundle.stop();
-                            while(jettyBundle.getState() != 4) {
-                                Thread.sleep(100);
-                            }
-                        }
-
-                        if(baseBundle != null) {
-                            baseBundle.stop();
-                            while(baseBundle.getState() != 4) {
-                                Thread.sleep(100);
-                            }
-                        }
-
-
-                        Bundle controllerBundle = getController();
-                        if(controllerBundle != null) {
-                            controllerBundle.stop();
-
-                            while(controllerBundle.getState() != 4) {
-                                Thread.sleep(100);
-                            }
-                        }
-
-                        if(coreBundle != null) {
-
-                            coreBundle.stop();
-
-                             while(coreBundle.getState() != 4) {
-                                 Thread.sleep(100);
-                             }
-
-                        }
-                        //controller, core, library, logger
-
-                        if(libraryBundle != null) {
-                            libraryBundle.stop();
-                            while(libraryBundle.getState() != 4) {
-                                Thread.sleep(100);
-                            }
-                        }
-
-                        if(loggerBundle != null) {
-                            loggerBundle.stop();
-                            while(loggerBundle.getState() != 4) {
-                                Thread.sleep(100);
-                            }
-                        }
+                        // Stop bundles in dependency order. Each stop is bounded by a timeout so a
+                        // bundle that never reaches RESOLVED cannot hang JVM shutdown indefinitely.
+                        stopBundleAndWait(consoleBundle);
+                        stopBundleAndWait(jettyBundle);
+                        stopBundleAndWait(baseBundle);
+                        // controller, core, library, logger
+                        stopBundleAndWait(getController());
+                        stopBundleAndWait(coreBundle);
+                        stopBundleAndWait(libraryBundle);
+                        stopBundleAndWait(loggerBundle);
 
 
                         shutdownApplication();
@@ -196,10 +164,15 @@ public class HostApplication {
 
             boolean enableConsole = agentConfig.getBooleanParam("enable_console",Boolean.FALSE);
 
-            // Now create an instance of the framework with
-            // our configuration properties.
-            m_felix = new Felix(configMap);
-            // Now start Felix instance.
+            // Create the framework via the standard OSGi launch API (org.osgi.framework.launch)
+            // rather than instantiating the Felix implementation class directly. The FrameworkFactory
+            // is discovered from META-INF/services on the classpath (provided by org.apache.felix.main).
+            FrameworkFactory frameworkFactory =
+                    ServiceLoader.load(FrameworkFactory.class, HostApplication.class.getClassLoader())
+                            .iterator().next();
+            m_felix = frameworkFactory.newFramework(configMap);
+            // init() makes a valid BundleContext available; start() raises the framework to ACTIVE.
+            m_felix.init();
             m_felix.start();
 
             BundleContext bc = m_felix.getBundleContext();
@@ -302,9 +275,9 @@ public class HostApplication {
 
                 try {
                     controllerBundle = installExternalBundleJars(bc, controllerVerion);
-                    if(controllerBundle.getState() == 2) {
+                    if(controllerBundle.getState() == Bundle.INSTALLED) {
                         controllerBundle.start();
-                        if(controllerBundle.getState() != 32) {
+                        if(controllerBundle.getState() != Bundle.ACTIVE) {
                             controllerBundle.stop();
                             controllerBundle.uninstall();
                             controllerBundle = null;
@@ -580,10 +553,10 @@ public class HostApplication {
             if(bundle != null) {
                 int bundleState = bundle.getState();
 
-                if (bundleState == 2) {
+                if (bundleState == Bundle.INSTALLED) {
                     bundle.start();
                     bundleState = bundle.getState();
-                    if (bundleState == 32) {
+                    if (bundleState == Bundle.ACTIVE) {
                         return true;
                     }
                 } else {
@@ -604,17 +577,17 @@ public class HostApplication {
         String returnString = null;
 
         switch (stateCode) {
-            case 1:  returnString= "Uninstalled";
+            case Bundle.UNINSTALLED:  returnString= "Uninstalled";
                 break;
-            case 2:  returnString= "Installed";
+            case Bundle.INSTALLED:  returnString= "Installed";
                 break;
-            case 4:  returnString= "Resolved";
+            case Bundle.RESOLVED:  returnString= "Resolved";
                 break;
-            case 8:  returnString= "Starting";
+            case Bundle.STARTING:  returnString= "Starting";
                 break;
-            case 16:  returnString= "Stopping";
+            case Bundle.STOPPING:  returnString= "Stopping";
                 break;
-            case 32:  returnString= "Active";
+            case Bundle.ACTIVE:  returnString= "Active";
                 break;
             default: returnString = "Unknown";
                 break;
@@ -642,6 +615,32 @@ public class HostApplication {
         return m_activator.getBundles();
     }
 
+
+    /**
+     * Stop a bundle and wait (bounded by BUNDLE_STOP_TIMEOUT_MS) for it to reach RESOLVED.
+     * Null-safe and time-bounded so a bundle that never stops cannot hang JVM shutdown.
+     */
+    private void stopBundleAndWait(Bundle bundle) {
+        if (bundle == null) {
+            return;
+        }
+        try {
+            bundle.stop();
+            long deadline = System.currentTimeMillis() + BUNDLE_STOP_TIMEOUT_MS;
+            while (bundle.getState() != Bundle.RESOLVED
+                    && bundle.getState() != Bundle.UNINSTALLED
+                    && System.currentTimeMillis() < deadline) {
+                Thread.sleep(100);
+            }
+            if (bundle.getState() != Bundle.RESOLVED && bundle.getState() != Bundle.UNINSTALLED) {
+                System.out.println("stopBundleAndWait: timed out waiting for "
+                        + bundle.getSymbolicName() + " to stop (state="
+                        + getState(bundle.getState()) + ")");
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
 
     public void shutdownApplication()
     {
