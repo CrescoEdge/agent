@@ -223,6 +223,11 @@ public class HostApplication {
             installInternalBundleJars(bc,"org.osgi.util.promise-1.3.0.jar");
             installInternalBundleJars(bc,"org.osgi.util.function-1.2.0.jar");
 
+            // R8 Declarative Services API (org.osgi.service.component 1.5.x) required by Felix SCR 2.2.12.
+            // The embedded osgi.cmpn 7.0.0 only exports the DS 1.4 API, so SCR 2.2.12 would otherwise
+            // fail to resolve (missing org.osgi.service.component >=1.5.0).
+            installInternalBundleJars(bc,"org.osgi.service.component-1.5.1.jar");
+
             installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-3.0.0.jar").start();
 
             if(enableConsole) {
@@ -242,14 +247,14 @@ public class HostApplication {
                 jettyBundle = installInternalBundleJars(bc, "org.apache.felix.http.jetty-5.1.16.jar");
                 jettyBundle.start();
 
-                consoleBundle = installInternalBundleJars(bc, "org.apache.felix.webconsole-5.0.2.jar");
+                consoleBundle = installInternalBundleJars(bc, "org.apache.felix.webconsole-5.0.18.jar");
                 consoleBundle.start();
             }
 
 
-            installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.4.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.gogo.runtime-1.1.6.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.2.jar").start();
-            installInternalBundleJars(bc,"org.apache.felix.scr-2.2.0.jar").start();
+            installInternalBundleJars(bc,"org.apache.felix.scr-2.2.12.jar").start();
 
             libraryBundle = installInternalBundleJars(bc,"library-1.2-SNAPSHOT.jar");
             libraryBundle.start();
