@@ -2,132 +2,118 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-<modelVersion>4.0.0</modelVersion>
+    <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.cresco</groupId>
+    <parent>
+        <groupId>io.cresco</groupId>
+        <artifactId>cresco-parent</artifactId>
+        <version>1.2-SNAPSHOT</version>
+        <relativePath/>
+    </parent>
+
     <artifactId>agent</artifactId>
-    <version>1.2-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-<name>Cresco Agent</name>
-<description>Cresco Framework Core Agent</description>
-<url>https://github.com/CrescoEdge/agent</url>
+    <name>Cresco Agent</name>
+    <description>Cresco Framework Core Agent</description>
+    <url>https://github.com/CrescoEdge/agent</url>
 
-<licenses>
-    <license>
-        <name>Apache License, Version 2.0</name>
-        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-        <distribution>repo</distribution>
-    </license>
-</licenses>
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
 
-<scm>
-    <connection>scm:git:git://github.com/CrescoEdge/agent.git</connection>
-</scm>
+    <scm>
+        <connection>scm:git:git://github.com/CrescoEdge/agent.git</connection>
+    </scm>
 
-<properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jdk>21</jdk>
-    <mojo.buildnumber.version>1.4</mojo.buildnumber.version>
-    <maven.compiler.version>3.13.0</maven.compiler.version>
-</properties>
+    <properties>
+        <!-- jdk, encoding, plugin versions inherited from cresco-parent -->
+        <!-- Apache Felix Framework launcher (current latest). Bump in Phase 2 to refresh the framework. -->
+        <felix.main.version>7.0.5</felix.main.version>
+    </properties>
 
+    <dependencies>
 
-<dependencies>
+        <dependency>
+            <groupId>org.apache.felix</groupId>
+            <artifactId>org.apache.felix.main</artifactId>
+            <version>${felix.main.version}</version>
+        </dependency>
 
-    <dependency>
-        <groupId>org.apache.felix</groupId>
-        <artifactId>org.apache.felix.main</artifactId>
-        <version>7.0.5</version>
-    </dependency>
-    <!--
-    <dependency>
-        <groupId>org.osgi</groupId>
-        <artifactId>org.osgi.service.cm</artifactId>
-        <version>1.6.0</version>
-    </dependency>
-    -->
-    <dependency>
-        <groupId>commons-configuration</groupId>
-        <artifactId>commons-configuration</artifactId>
-        <version>1.10</version>
-    </dependency>
+        <dependency>
+            <groupId>commons-configuration</groupId>
+            <artifactId>commons-configuration</artifactId>
+            <version>1.10</version>
+        </dependency>
 
-</dependencies>
-<build>
-    <plugins>
-        <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <version>${maven.compiler.version}</version>
-            <configuration>
-                <source>${jdk}</source>
-                <target>${jdk}</target>
-            </configuration>
-        </plugin>
-        <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>buildnumber-maven-plugin</artifactId>
-            <version>${mojo.buildnumber.version}</version>
-            <executions>
-                <execution>
-                    <phase>validate</phase>
-                    <goals>
-                        <goal>create</goal>
-                    </goals>
-                </execution>
-            </executions>
-            <configuration>
-                <doCheck>false</doCheck>
-                <doUpdate>false</doUpdate>
-                <shortRevisionLength>5</shortRevisionLength>
-            </configuration>
-        </plugin>
+    </dependencies>
 
-        <plugin>
+    <build>
+        <plugins>
 
-            <artifactId>maven-assembly-plugin</artifactId>
-            <configuration>
-                <descriptors>
-                    <descriptor>src/assemble/bin.xml</descriptor>
-                </descriptors>
-                <archive>
-                    <manifest>
-                        <mainClass>io.cresco.main.AgentEngine</mainClass>
-                        <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                        <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
-                    </manifest>
-                    <manifestEntries>
-                        <artifactId>cresco-agent</artifactId>
-                        <Implementation-Version>${project.version}.${buildNumber}.${maven.build.timestamp}</Implementation-Version>
-                    </manifestEntries>
-                </archive>
-                <descriptorRefs>
-                    <descriptorRef>jar-with-dependencies</descriptorRef>
-                </descriptorRefs>
-                <finalName>${project.artifactId}-${project.version}</finalName>
-                <appendAssemblyId>false</appendAssemblyId>
+            <!-- maven-compiler-plugin (release 21) inherited from cresco-parent -->
 
-            </configuration>
-            <executions>
-                <execution>
-                    <id>make-assembly</id>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>single</goal>
-                    </goals>
-                </execution>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>buildnumber-maven-plugin</artifactId>
+                <!-- version inherited from cresco-parent pluginManagement -->
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>create</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <doCheck>false</doCheck>
+                    <doUpdate>false</doUpdate>
+                    <shortRevisionLength>5</shortRevisionLength>
+                </configuration>
+            </plugin>
 
-            </executions>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <!-- version inherited from cresco-parent pluginManagement -->
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/assemble/bin.xml</descriptor>
+                    </descriptors>
+                    <archive>
+                        <manifest>
+                            <mainClass>io.cresco.main.AgentEngine</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                            <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <artifactId>cresco-agent</artifactId>
+                            <Implementation-Version>${project.version}.${buildNumber}.${maven.build.timestamp}</Implementation-Version>
+                        </manifestEntries>
+                    </archive>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <finalName>${project.artifactId}-${project.version}</finalName>
+                    <appendAssemblyId>false</appendAssemblyId>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
 
-        </plugin>
+        </plugins>
 
-
-    </plugins>
-
-
-
-    <finalName>${project.artifactId}-${project.version}</finalName>
-</build>
+        <finalName>${project.artifactId}-${project.version}</finalName>
+    </build>
 
 </project>
