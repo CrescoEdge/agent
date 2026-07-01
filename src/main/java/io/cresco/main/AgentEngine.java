@@ -4,6 +4,7 @@ import java.io.File;
 
 public class AgentEngine
 {
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(AgentEngine.class.getName());
 
     protected static HostApplication ha;
     public static HostApplication create() throws Exception {
@@ -40,7 +41,7 @@ public class AgentEngine
             AgentEngine.create();
 
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
         }
 
     }

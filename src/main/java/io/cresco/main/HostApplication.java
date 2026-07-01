@@ -19,6 +19,7 @@ import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.nio.file.Files;
 public class HostApplication {
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(HostApplication.class.getName());
 
     /**
      * Felix-specific framework property carrying a List of BundleActivator instances that are
@@ -53,7 +54,7 @@ public class HostApplication {
 
         agentConfig = new Config(fileConfigMap);
 
-        //System.out.println("Building OSGi Framework");
+        //LOG.info("Building OSGi Framework");
 
         // Create a configuration property map.
         Map configMap = new HashMap();
@@ -156,8 +157,8 @@ public class HostApplication {
 
 
                     } catch (Exception ex) {
-                        System.out.println("Shutdown Exception");
-                        ex.printStackTrace();
+                        LOG.info("Shutdown Exception");
+                        LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
                     }
                 }
             });
@@ -196,7 +197,7 @@ public class HostApplication {
                                 if (installed != null) {
                                     bundleList.add(installed);
                                 } else {
-                                    System.out.println("externaljars: skipping " + file.getAbsolutePath()
+                                    LOG.info("externaljars: skipping " + file.getAbsolutePath()
                                             + " (install failed)");
                                 }
                             }
@@ -205,7 +206,7 @@ public class HostApplication {
                             try {
                                 b.start();
                             } catch (Exception ex) {
-                                System.out.println("externaljars: failed to start bundle "
+                                LOG.info("externaljars: failed to start bundle "
                                         + b.getSymbolicName() + " : " + ex.getMessage());
                             }
                         }
@@ -213,7 +214,7 @@ public class HostApplication {
                 }
 
             } catch(Exception ex) {
-                ex.printStackTrace();
+                LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
             }
 
             //items to make Java > 8 work, work in progress, does not work
@@ -285,7 +286,7 @@ public class HostApplication {
                     controllerVerion = versionConfig.getStringParams(pluginName, "jarfile");
                 }
             } catch (Exception ex){
-                ex.printStackTrace();
+                LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
             }
 
             String internalController = "controller-1.2-SNAPSHOT.jar";
@@ -306,7 +307,7 @@ public class HostApplication {
                     }
 
                 } catch (Exception ex) {
-                    ex.printStackTrace();
+                    LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
                     controllerBundle = null;
                 }
             }
@@ -321,8 +322,8 @@ public class HostApplication {
         }
         catch (Exception ex)
         {
-            System.err.println("Could not create framework: " + ex);
-            ex.printStackTrace();
+            LOG.severe("Could not create framework: " + ex);
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
         }
 
     }
@@ -339,14 +340,14 @@ public class HostApplication {
                         getClass().getClassLoader().getResourceAsStream(bundleName));
                 
             } else {
-                System.out.println("Bundle = null for " + bundleName);
+                LOG.info("Bundle = null for " + bundleName);
             }
         } catch(Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
         }
 
         if(installedBundle == null) {
-            System.out.println("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
+            LOG.info("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
 
             System.exit(0);
         }
@@ -364,7 +365,7 @@ public class HostApplication {
             String location = new File(bundleName).toURI().toString();
             installedBundle = context.installBundle(location);
         } catch(Exception ex) {
-            System.out.println("installExternalBundleJars: failed to install " + bundleName
+            LOG.info("installExternalBundleJars: failed to install " + bundleName
                     + " : " + ex.getMessage());
         }
 
@@ -525,7 +526,7 @@ public class HostApplication {
             //enableMsg.setParam("location", location);
             configParams.put("location", location);
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
             System.exit(0);
         }
         return configParams;
@@ -553,7 +554,7 @@ public class HostApplication {
             }
 
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
             System.exit(0);
         }
         return config;
@@ -573,14 +574,14 @@ public class HostApplication {
                         return true;
                     }
                 } else {
-                    System.out.println("bundle not ready");
+                    LOG.info("bundle not ready");
                 }
             } else {
-                System.out.println("startInternalBundleJars Bundle = null ");
+                LOG.info("startInternalBundleJars Bundle = null ");
             }
 
         } catch(Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
         }
 
         return false;
@@ -611,12 +612,12 @@ public class HostApplication {
     public void printb() {
         for (Bundle bundle : m_activator.getBundles()) {
             if (bundle.getHeaders().get(Constants.FRAGMENT_HOST) == null) {
-                System.out.println("state:" + getState(bundle.getState()));
-                System.out.println("id:" + bundle.getBundleId());
-                System.out.println("location:" + bundle.getLocation());
-                System.out.println("version:" + bundle.getVersion());
+                LOG.info("state:" + getState(bundle.getState()));
+                LOG.info("id:" + bundle.getBundleId());
+                LOG.info("location:" + bundle.getLocation());
+                LOG.info("version:" + bundle.getVersion());
 
-                System.out.println("---");
+                LOG.info("---");
             }
         }
     }
@@ -646,12 +647,12 @@ public class HostApplication {
                 Thread.sleep(100);
             }
             if (bundle.getState() != Bundle.RESOLVED && bundle.getState() != Bundle.UNINSTALLED) {
-                System.out.println("stopBundleAndWait: timed out waiting for "
+                LOG.info("stopBundleAndWait: timed out waiting for "
                         + bundle.getSymbolicName() + " to stop (state="
                         + getState(bundle.getState()) + ")");
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
         }
     }
 
@@ -663,7 +664,7 @@ public class HostApplication {
             m_felix.stop();
             m_felix.waitForStop(0);
         } catch(Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
         }
     }
 
@@ -687,12 +688,12 @@ public class HostApplication {
                 //servRefs = context.getServiceReferences(PluginService.class.getName(), filterString);
                 servRefs = context.getServiceReferences(className, filterString);
 
-                //System.out.println("REFS : " + servRefs.length);
+                //LOG.info("REFS : " + servRefs.length);
                 if (servRefs == null || servRefs.length == 0) {
-                    //System.out.println("NULL FOUND NOTHING!");
+                    //LOG.info("NULL FOUND NOTHING!");
 
                 } else {
-                    //System.out.println("Running Service Count: " + servRefs.length);
+                    //LOG.info("Running Service Count: " + servRefs.length);
 
                     for (ServiceReference sr : servRefs) {
 
@@ -707,10 +708,10 @@ public class HostApplication {
                 Thread.sleep(1000);
             }
             if(servRefs == null) {
-                System.out.println("COULD NOT START PLUGIN COULD NOT GET SERVICE");
+                LOG.info("COULD NOT START PLUGIN COULD NOT GET SERVICE");
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
         }
         return isStarted;
     }
@@ -732,7 +733,7 @@ public class HostApplication {
             }
 
         } catch (Exception ex) {
-            ex.printStackTrace();
+            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
         }
         return controllerBundle;
     }

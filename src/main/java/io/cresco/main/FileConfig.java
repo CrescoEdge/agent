@@ -8,6 +8,7 @@ import java.io.File;
 import java.util.*;
 
 public class FileConfig {
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(FileConfig.class.getName());
 
     private HierarchicalINIConfiguration iniConfObj;
 
@@ -82,7 +83,7 @@ public class FileConfig {
             SubnodeConfiguration sObj = iniConfObj.getSection(section);
             return_param = Integer.parseInt(sObj.getString(param));
         } catch (Exception ex) {
-            System.out.println("AgentEngine : Config : Error : " + ex.toString());
+            LOG.info("AgentEngine : Config : Error : " + ex.toString());
         }
         return return_param;
     }
@@ -93,7 +94,7 @@ public class FileConfig {
             SubnodeConfiguration sObj = iniConfObj.getSection(section);
             return_param = sObj.getString(param);
         } catch (Exception ex) {
-            System.out.println("AgentEngine : Config : Error : " + ex.toString());
+            LOG.info("AgentEngine : Config : Error : " + ex.toString());
         }
         return return_param;
     }
