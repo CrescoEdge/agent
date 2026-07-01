@@ -230,7 +230,7 @@ public class HostApplication {
             */
 
             installInternalBundleJars(bc,"org.apache.felix.configadmin-1.9.26.jar").start();
-            loggerBundle = installInternalBundleJars(bc,"logger-1.2-SNAPSHOT.jar");
+            loggerBundle = installInternalBundleJars(bc,"logger.jar");
             loggerBundle.start();
 
             installInternalBundleJars(bc,"org.apache.felix.metatype-1.2.4.jar").start();
@@ -273,10 +273,10 @@ public class HostApplication {
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.2.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.scr-2.2.12.jar").start();
 
-            libraryBundle = installInternalBundleJars(bc,"library-1.2-SNAPSHOT.jar");
+            libraryBundle = installInternalBundleJars(bc,"library.jar");
             libraryBundle.start();
 
-            coreBundle = installInternalBundleJars(bc,"core-1.2-SNAPSHOT.jar");
+            coreBundle = installInternalBundleJars(bc,"core.jar");
             coreBundle.start();
 
             String pluginName = "io.cresco.controller";
@@ -289,7 +289,7 @@ public class HostApplication {
                 LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
             }
 
-            String internalController = "controller-1.2-SNAPSHOT.jar";
+            String internalController = "controller.jar";
 
             Bundle controllerBundle = null;
 

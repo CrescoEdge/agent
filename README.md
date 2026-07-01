@@ -60,7 +60,7 @@ Then build the agent uber-jar:
 mvn package
 ```
 
-This produces `target/agent-1.2-SNAPSHOT.jar` (main class `io.cresco.main.AgentEngine`).
+This produces `target/agent-1.3-SNAPSHOT.jar` (main class `io.cresco.main.AgentEngine`).
 `prebuild.sh` shows how the component jars are staged into `src/main/resources/` before the
 assembly; it can pull published snapshots, or you can stage locally-built bundles.
 
@@ -72,7 +72,7 @@ java -Djava.net.preferIPv4Stack=true \
      -Denable_wsapi=true -Denable_console=true \
      -Ddiscovery_secret_global=sec -Ddiscovery_secret_region=sec -Ddiscovery_secret_agent=sec \
      -Dcresco_service_key=mykey \
-     -jar agent-1.2-SNAPSHOT.jar
+     -jar agent-1.3-SNAPSHOT.jar
 ```
 
 Configuration is via `-D` system properties, `CRESCO_*` environment variables, or an
