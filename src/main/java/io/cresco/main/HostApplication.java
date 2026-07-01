@@ -273,6 +273,14 @@ public class HostApplication {
             installInternalBundleJars(bc,"org.apache.felix.gogo.command-1.1.2.jar").start();
             installInternalBundleJars(bc,"org.apache.felix.scr-2.2.12.jar").start();
 
+            // Felix Health Check API (org.apache.felix.hc.api) — the contract the controller registers
+            // HealthCheck services against. API bundle only: it imports just org.osgi.framework and
+            // resolves trivially. The HC *core* executor is intentionally NOT provisioned (its R8 deps
+            // -- org.osgi.service.condition, org.osgi.service.servlet.context, slf4j [1.7,2) -- are
+            // absent from this minimal Felix); the controller runs its own executor. Installed, not
+            // started: an API bundle only needs to reach RESOLVED to export its packages.
+            installInternalBundleJars(bc,"org.apache.felix.healthcheck.api-2.0.4.jar");
+
             libraryBundle = installInternalBundleJars(bc,"library.jar");
             libraryBundle.start();
 
