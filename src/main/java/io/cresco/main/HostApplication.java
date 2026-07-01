@@ -177,21 +177,37 @@ public class HostApplication {
 
             BundleContext bc = m_felix.getBundleContext();
 
-            //install any user-provided bundle dependencies
+            // Install any operator-provided drop-in bundles from the externaljars/ directory
+            // (default; overridable via -Dcresco_externaljars_dir). Each jar is installed and
+            // started independently: a failure of one jar is logged and skipped rather than
+            // aborting the rest (previously a single failed install returned null and the
+            // subsequent b.start() NPE'd the whole batch).
             try {
-                File directory = new File("externaljars");
-                if(directory.exists()) {
+                String externalJarsDir = System.getProperty("cresco_externaljars_dir", "externaljars");
+                File directory = new File(externalJarsDir);
+                if(directory.isDirectory()) {
                     File[] files = directory.listFiles();
                     if(files != null) {
 
                         List<Bundle> bundleList = new ArrayList<>();
                         for (File file : files) {
-                            if (file.isFile()) {
-                                bundleList.add(installExternalBundleJars(bc,file.getAbsolutePath()));
+                            if (file.isFile() && file.getName().toLowerCase().endsWith(".jar")) {
+                                Bundle installed = installExternalBundleJars(bc, file.getAbsolutePath());
+                                if (installed != null) {
+                                    bundleList.add(installed);
+                                } else {
+                                    System.out.println("externaljars: skipping " + file.getAbsolutePath()
+                                            + " (install failed)");
+                                }
                             }
                         }
                         for(Bundle b : bundleList) {
-                            b.start();
+                            try {
+                                b.start();
+                            } catch (Exception ex) {
+                                System.out.println("externaljars: failed to start bundle "
+                                        + b.getSymbolicName() + " : " + ex.getMessage());
+                            }
                         }
                     }
                 }
@@ -342,22 +358,14 @@ public class HostApplication {
 
         Bundle installedBundle = null;
         try {
-            //URL bundleURL = new URL("file://" + bundleName);
-            //if(bundleURL != null) {
-
-                installedBundle = context.installBundle("file://" + bundleName);
-
-            //} else {
-            //    System.out.println("Bundle = null for " + bundleName);
-            //}
+            // Build a well-formed file: URI (handles spaces / platform path differences) instead of
+            // string-concatenating "file://" + path. Returns null on failure so the caller can skip
+            // this jar; the JVM is not exited.
+            String location = new File(bundleName).toURI().toString();
+            installedBundle = context.installBundle(location);
         } catch(Exception ex) {
-            ex.printStackTrace();
-        }
-
-        if(installedBundle == null) {
-            System.out.println("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
-
-            //System.exit(0);
+            System.out.println("installExternalBundleJars: failed to install " + bundleName
+                    + " : " + ex.getMessage());
         }
 
         return installedBundle;
