@@ -273,23 +273,4 @@ public class Config {
         return returnConfigMap;
     }
 
-    public String getConfigAsJSON() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("{");
-        Iterator it = this.configMap.entrySet().iterator();
-
-        while (it.hasNext()) {
-            String key = (String)it.next();
-            String value = String.valueOf(this.configMap.get(key));
-            sb.append("\"");
-            sb.append(key);
-            sb.append("\":\"");
-            sb.append(value);
-            sb.append("\",");
-        }
-        if (sb.lastIndexOf(",") > -1)
-            sb.deleteCharAt(sb.lastIndexOf(","));
-        sb.append("}");
-        return sb.toString();
-    }
 }
