@@ -45,6 +45,12 @@ public class HostApplication {
     private Bundle consoleBundle = null;
     private Bundle jettyBundle = null;
     private Bundle baseBundle = null;
+
+    /** Pidfile for THIS agent (written on boot, removed on shutdown) so a graceful shutdown can
+     *  target it — see {@link AgentEngineShutdown} and run/stop.sh. */
+    private static final String PID_FILE_NAME = "agent.pid";
+    private Path pidFilePath = null;
+
     public HostApplication()
     {
 
@@ -84,6 +90,9 @@ public class HostApplication {
         } else {
             configMap.put(Constants.FRAMEWORK_STORAGE, "cresco-data/felix-cache");
         }
+
+        // Record this agent's PID so a graceful shutdown can target it (AgentEngineShutdown/stop.sh).
+        writePidFile(cresco_data_location);
 
         //config.put(FRAMEWORK_SYSTEMPACKAGES_EXTRA, this.systemPackages.toString());
 
@@ -132,6 +141,8 @@ public class HostApplication {
 
 
                         shutdownApplication();
+
+                        deletePidFile();
 
                         //try and remove data here if needed
                         String tmp_data = agentConfig.getStringParam("tmp_data");
@@ -380,6 +391,31 @@ public class HostApplication {
         return installedBundle;
     }
 
+
+    /** Write this JVM's PID to {@code <dataDir>/agent.pid} so a graceful shutdown can find it. */
+    private void writePidFile(String dataDir) {
+        try {
+            Path dir = Paths.get((dataDir != null) ? dataDir : "cresco-data");
+            Files.createDirectories(dir);
+            pidFilePath = dir.resolve(PID_FILE_NAME);
+            Files.write(pidFilePath, Long.toString(ProcessHandle.current().pid()).getBytes());
+            pidFilePath.toFile().deleteOnExit(); // best-effort backstop if the hook is skipped
+            LOG.info("wrote pidfile " + pidFilePath.toAbsolutePath() + " (pid " + ProcessHandle.current().pid() + ")");
+        } catch (Exception ex) {
+            System.err.println("HostApplication: could not write pidfile: " + ex);
+        }
+    }
+
+    /** Remove the pidfile on clean shutdown. */
+    private void deletePidFile() {
+        try {
+            if (pidFilePath != null) {
+                Files.deleteIfExists(pidFilePath);
+            }
+        } catch (Exception ignore) {
+            // best effort
+        }
+    }
 
     private Map<String,Object> initAgentConfigMap() {
         Map<String, Object> configParams = null;
