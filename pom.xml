@@ -54,10 +54,15 @@
             <version>${felix.main.version}</version>
         </dependency>
 
+        <!-- commons-configuration2 replaces EOL commons-configuration 1.x (no security patches;
+             pulled vulnerable commons-beanutils). v2 brings commons-lang3 + commons-text (both
+             non-optional, bundled by the assembly). beanutils is optional and NOT pulled.
+             commons-logging is left in: configuration2 uses JCL at runtime and this uber-jar has
+             no other JCL provider (unlike the OSGi bundles, which get it from pax-logging). -->
         <dependency>
-            <groupId>commons-configuration</groupId>
-            <artifactId>commons-configuration</artifactId>
-            <version>1.10</version>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-configuration2</artifactId>
+            <version>2.11.0</version>
         </dependency>
 
         <!-- Conscrypt (BoringSSL via JCE provider) to accelerate the ActiveMQ inter-node broker TLS
