@@ -260,7 +260,7 @@ public class HostApplication {
 
             if(enableConsole) {
 
-                installInternalBundleJars(bc, "commons-io-2.16.1.jar");
+                installInternalBundleJars(bc, "commons-io-2.22.0.jar");
                 installInternalBundleJars(bc, "commons-fileupload-1.5.jar");
                 installInternalBundleJars(bc, "org.osgi.service.useradmin-1.1.1.jar");
 
