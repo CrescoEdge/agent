@@ -44,6 +44,9 @@
         <!-- jdk, encoding, plugin versions inherited from cresco-parent -->
         <!-- Apache Felix Framework launcher (current latest). Bump in Phase 2 to refresh the framework. -->
         <felix.main.version>7.0.5</felix.main.version>
+        <!-- Escape hatch for the embedded-bundle build guard (EmbeddedBundleCheck); never set it
+             for a build that will be deployed. -->
+        <cresco.skipBundleCheck>false</cresco.skipBundleCheck>
     </properties>
 
     <dependencies>
@@ -76,6 +79,12 @@
             <version>2.6-alpha5</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -100,6 +109,35 @@
                     <doUpdate>false</doUpdate>
                     <shortRevisionLength>5</shortRevisionLength>
                 </configuration>
+            </plugin>
+
+            <!-- Build guard (CrescoEdge/agent#3): every embedded jar under src/main/resources must be
+                 an OSGi bundle (Bundle-SymbolicName in its manifest). A controller.jar built
+                 without bundle:bundle installs as an empty legacy bundle and the agent parks
+                 silently at startup, so fail the build here instead, naming the jar. Runs on the
+                 copied resources (exactly what gets packaged) right after compile, before tests. -->
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>verify-embedded-bundles</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${cresco.skipBundleCheck}</skip>
+                            <target>
+                                <java classname="io.cresco.main.EmbeddedBundleCheck"
+                                      classpath="${project.build.outputDirectory}"
+                                      fork="true" failonerror="true">
+                                    <arg value="${project.build.outputDirectory}"/>
+                                </java>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
 
             <plugin>

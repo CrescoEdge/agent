@@ -32,6 +32,31 @@ public class HostApplication {
     /** Max time to wait for a bundle to reach RESOLVED during shutdown before giving up. */
     private static final long BUNDLE_STOP_TIMEOUT_MS = 10_000L;
 
+    /** Symbolic name of the controller bundle (embedded controller.jar). */
+    private static final String CONTROLLER_BSN = "io.cresco.controller";
+
+    /** Service the controller's immediate SCR component registers once the bundle is usable. */
+    private static final String AGENT_SERVICE_CLASS = "io.cresco.library.agent.AgentService";
+
+    /**
+     * Backstop (seconds) for the controller to register its AgentService after it is started
+     * (config/property/env {@code controller_activation_timeout_sec}; 0 or less disables). The
+     * definitive failures -- a jar that is not an OSGi bundle, an install/resolve/start exception
+     * -- are fatal immediately; this window only catches a controller that starts but never
+     * activates. The registration normally lands within seconds (the long fabric join runs later
+     * on its own thread), so the default is deliberately generous for slow shared storage.
+     */
+    private static final long DEFAULT_CONTROLLER_ACTIVATION_TIMEOUT_SEC = 300L;
+
+    /** Exit status when the agent cannot bring up its embedded bundles. */
+    private static final int EXIT_EMBEDDED_BUNDLE_FAILURE = 1;
+
+    /** The embedded jar (or startup step) in progress, named by a fatal startup error. */
+    private volatile String startupStep = "Felix framework init";
+
+    /** Set by the shutdown hook so the activation watchdog never races a deliberate stop. */
+    private volatile boolean shuttingDown = false;
+
     private HostActivator m_activator = null;
     private Framework m_felix = null;
     private ServiceTracker m_tracker = null;
@@ -126,6 +151,7 @@ public class HostApplication {
                 @Override
                 public void run()
                 {
+                    shuttingDown = true;
                     try {
 
                         // Stop bundles in dependency order. Each stop is bounded by a timeout so a
@@ -316,7 +342,17 @@ public class HostApplication {
 
                 try {
                     controllerBundle = installExternalBundleJars(bc, controllerVerion);
-                    if(controllerBundle.getState() == Bundle.INSTALLED) {
+                    if(controllerBundle != null && !CONTROLLER_BSN.equals(controllerBundle.getSymbolicName())) {
+                        // Not an OSGi bundle (or not the controller): it would install as an empty
+                        // legacy bundle and never activate. Drop it and use the embedded controller.
+                        LOG.severe("version.ini controller jar " + controllerVerion + " is not the "
+                                + CONTROLLER_BSN + " OSGi bundle (Bundle-SymbolicName="
+                                + controllerBundle.getSymbolicName() + "); ignoring it and using the embedded "
+                                + internalController + " (rebuild it with 'mvn clean package bundle:bundle')");
+                        controllerBundle.uninstall();
+                        controllerBundle = null;
+                    }
+                    if(controllerBundle != null && controllerBundle.getState() == Bundle.INSTALLED) {
                         controllerBundle.start();
                         if(controllerBundle.getState() != Bundle.ACTIVE) {
                             controllerBundle.stop();
@@ -333,23 +369,33 @@ public class HostApplication {
 
             if(controllerBundle == null) {
                 controllerBundle = installInternalBundleJars(bc, internalController);
+                if(!CONTROLLER_BSN.equals(controllerBundle.getSymbolicName())) {
+                    fatal("the embedded " + internalController + " is an OSGi bundle named '"
+                            + controllerBundle.getSymbolicName() + "', not " + CONTROLLER_BSN
+                            + "; re-embed the controller built with 'mvn clean package bundle:bundle'", null);
+                }
                 controllerBundle.start();
             }
+            startupStep = "controller activation";
 
-
+            startControllerActivationWatchdog(controllerBundle);
 
         }
         catch (Exception ex)
         {
-            LOG.severe("Could not create framework: " + ex);
-            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
+            // Previously logged and returned, leaving the JVM parked on Felix's non-daemon threads
+            // with no controller (CrescoEdge/agent#3). Any failure here leaves the agent unusable.
+            fatal("agent startup failed at " + startupStep + ": " + ex
+                    + "; check that the embedded jar is a valid OSGi bundle built with 'mvn clean package bundle:bundle'", ex);
         }
 
     }
 
     private Bundle installInternalBundleJars(BundleContext context, String bundleName) {
 
+        startupStep = "embedded bundle " + bundleName;
         Bundle installedBundle = null;
+        Exception installFailure = null;
         try {
             URL bundleURL = getClass().getClassLoader().getResource(bundleName);
             if(bundleURL != null) {
@@ -359,16 +405,25 @@ public class HostApplication {
                         getClass().getClassLoader().getResourceAsStream(bundleName));
                 
             } else {
-                LOG.info("Bundle = null for " + bundleName);
+                fatal("the embedded jar " + bundleName + " is missing from the agent jar; "
+                        + "rebuild the agent with every component staged in src/main/resources", null);
             }
         } catch(Exception ex) {
-            LOG.log(java.util.logging.Level.SEVERE, "exception", ex);
+            installFailure = ex;
         }
 
         if(installedBundle == null) {
-            LOG.info("installInternalBundleJars() + Failed to load bundle " +bundleName + " exiting!");
+            fatal("the embedded jar " + bundleName + " could not be installed as an OSGi bundle ("
+                    + installFailure + "); check that it is a valid bundle built with "
+                    + "'mvn clean package bundle:bundle'", installFailure);
+        }
 
-            System.exit(0);
+        // A jar without Bundle-SymbolicName (e.g. built by plain 'mvn package', no bundle:bundle)
+        // installs as an empty legacy R3 bundle that "starts" but never activates anything; the
+        // agent then parked silently. Every embedded jar is a real bundle, so refuse it here.
+        if(installedBundle.getSymbolicName() == null) {
+            fatal("the embedded jar " + bundleName + " is not an OSGi bundle (no Bundle-SymbolicName "
+                    + "in its manifest); rebuild it with 'mvn clean package bundle:bundle' and re-embed it", null);
         }
 
         return installedBundle;
@@ -391,6 +446,80 @@ public class HostApplication {
         return installedBundle;
     }
 
+
+    /**
+     * Log one FATAL, actionable line and exit non-zero. Used when an embedded bundle cannot be
+     * brought up: the Felix framework threads are non-daemon, so returning would leave a JVM that
+     * looks "still starting" forever. JUL reaches the console whether or not the logging bundle
+     * is up (it is routed through it once it is).
+     */
+    private void fatal(String message, Throwable cause) {
+        String line = "FATAL: " + message;
+        if (cause != null) {
+            LOG.log(java.util.logging.Level.SEVERE, line, cause);
+        } else {
+            LOG.severe(line);
+        }
+        System.exit(EXIT_EMBEDDED_BUNDLE_FAILURE);
+    }
+
+    /** True once {@code bundle} has registered the controller's AgentService. */
+    private static boolean hasRegisteredAgentService(Bundle bundle) {
+        ServiceReference<?>[] refs = bundle.getRegisteredServices();
+        if (refs == null) {
+            return false;
+        }
+        for (ServiceReference<?> ref : refs) {
+            Object objectClass = ref.getProperty(Constants.OBJECTCLASS);
+            if (objectClass instanceof String[]) {
+                for (String name : (String[]) objectClass) {
+                    if (AGENT_SERVICE_CLASS.equals(name)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Backstop for a controller bundle that starts but never activates: if it has not registered
+     * its AgentService within controller_activation_timeout_sec, log FATAL naming the jar and exit
+     * non-zero instead of parking. Daemon thread; silent on the healthy path.
+     */
+    private void startControllerActivationWatchdog(final Bundle controllerBundle) {
+        final long timeoutSec = agentConfig.getLongParam("controller_activation_timeout_sec",
+                DEFAULT_CONTROLLER_ACTIVATION_TIMEOUT_SEC);
+        if (timeoutSec <= 0 || hasRegisteredAgentService(controllerBundle)) {
+            return;
+        }
+        Thread watchdog = new Thread(() -> {
+            long deadline = System.currentTimeMillis() + timeoutSec * 1000L;
+            try {
+                while (System.currentTimeMillis() < deadline) {
+                    if (shuttingDown || hasRegisteredAgentService(controllerBundle)) {
+                        return;
+                    }
+                    Thread.sleep(1000L);
+                }
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            } catch (IllegalStateException ise) {
+                return; // bundle uninstalled: the framework is going down
+            }
+            if (shuttingDown || hasRegisteredAgentService(controllerBundle)) {
+                return;
+            }
+            fatal("the embedded controller bundle (" + controllerBundle.getLocation() + ", state "
+                    + getState(controllerBundle.getState()) + ") did not activate within " + timeoutSec
+                    + " s (no " + AGENT_SERVICE_CLASS + " registered); check that controller.jar is a valid "
+                    + "OSGi bundle built with 'mvn clean package bundle:bundle' and see the log above "
+                    + "(raise controller_activation_timeout_sec only if startup is merely slow)", null);
+        }, "controller-activation-watchdog");
+        watchdog.setDaemon(true);
+        watchdog.start();
+    }
 
     /** Write this JVM's PID to {@code <dataDir>/agent.pid} so a graceful shutdown can find it. */
     private void writePidFile(String dataDir) {

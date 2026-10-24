@@ -61,6 +61,9 @@ mvn package
 ```
 
 This produces `target/agent-1.3-SNAPSHOT.jar` (main class `io.cresco.main.AgentEngine`).
+The build fails (process-classes, `EmbeddedBundleCheck`) if any embedded jar in
+`src/main/resources/` is not an OSGi bundle (no `Bundle-SymbolicName`, e.g. a controller built
+without `bundle:bundle`), naming the jar; `-Dcresco.skipBundleCheck=true` bypasses it for testing only.
 `prebuild.sh` shows how the component jars are staged into `src/main/resources/` before the
 assembly; it can pull published snapshots, or you can stage locally-built bundles.
 
@@ -81,6 +84,12 @@ Configuration is via `-D` system properties, `CRESCO_*` environment variables, o
 `discovery_secret_{global,region,agent}`, `cresco_service_key`,
 `enable_wsapi`/`enable_console`/`enable_dashboard`, `port`. Runtime state is written to
 `cresco-data/` (Felix cache, Derby DB, ActiveMQ data, logs).
+
+If an embedded bundle cannot be installed or started (for example a `controller.jar` that is not
+an OSGi bundle), the agent logs one `FATAL:` line naming the jar and exits with status 1 instead
+of hanging. As a backstop, if the controller bundle starts but has not registered its
+`AgentService` within `controller_activation_timeout_sec` (default 300; `0` disables) the agent
+exits the same way.
 
 ## Clients
 
