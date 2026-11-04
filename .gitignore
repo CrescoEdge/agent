@@ -8,3 +8,9 @@ felix-cache/
 database/
 agent/
 
+
+# release signing keys never belong in the repository (scripts/sign-release.sh refuses a key inside it)
+*.key
+*.p12
+*.pfx
+release-signing*

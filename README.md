@@ -67,6 +67,43 @@ without `bundle:bundle`), naming the jar; `-Dcresco.skipBundleCheck=true` bypass
 `prebuild.sh` shows how the component jars are staged into `src/main/resources/` before the
 assembly; it can pull published snapshots, or you can stage locally-built bundles.
 
+## Release: SBOM and signatures
+
+Every `mvn package` writes a CycloneDX 1.6 software bill of materials next to the jar,
+`target/agent-<version>.cdx.json`. The CycloneDX Maven plugin lists the agent's Maven dependencies, and the build then
+adds what the agent jar really ships (`EmbeddedSbom`): every embedded bundle in `src/main/resources` (controller,
+library, wsapi, the Felix bundles, ...) with its Maven coordinates and purl (or OSGi name and version) and its SHA-256,
+SHA-384 and SHA-512, and under each the libraries it carries (for example wsapi's Netty and BouncyCastle). Feed it to a
+vulnerability scanner (`grype sbom:target/agent-1.3-SNAPSHOT.cdx.json`, Dependency-Track, ...).
+
+A release is signed with an operator-held key, on any build host (a workstation or the DGX; no GitHub Actions):
+
+```bash
+# once, offline: an EC P-384 key (RSA-3072+ also accepted), passphrase-protected, never in this repository
+umask 077
+openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-384 -aes-256-cbc -out ~/keys/cresco-release.key
+openssl pkey -in ~/keys/cresco-release.key -pubout -out cresco-release.pub      # publish this and its fingerprint
+
+# each release
+mvn -B clean package
+scripts/sign-release.sh --key ~/keys/cresco-release.key            # target/agent-*.jar and target/agent-*.cdx.json
+```
+
+For each file it writes `<file>.sha384` (`sha384sum -c` / `shasum -a 384 -c` format) and `<file>.sig` (a detached
+SHA-384 ECDSA or RSA signature), and prints the SHA-256 fingerprint of the signing public key. It refuses a key that
+is weaker than EC P-384 / RSA-3072, readable by others (it must be 0600 or 0400), or inside the repository
+(`.gitignore` also keeps `*.key`, `*.p12` and `release-signing*` out). `--passin env:VAR` or `--passin file:PATH`
+supplies the passphrase non-interactively; `--out DIR` puts the outputs elsewhere.
+
+Anyone can check a release with the published public key (or an X.509 certificate for it), pinning its fingerprint:
+
+```bash
+scripts/verify-release.sh --pub cresco-release.pub --fingerprint sha256:<published fingerprint> \
+    agent-1.3-SNAPSHOT.jar agent-1.3-SNAPSHOT.cdx.json
+```
+
+It exits non-zero unless every file matches its checksum and its signature verifies with that key.
+
 ## Run
 
 ```bash
