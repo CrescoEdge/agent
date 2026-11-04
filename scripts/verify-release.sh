@@ -2,6 +2,7 @@
 # Verify a signed agent release (from scripts/sign-release.sh).
 #
 #   scripts/verify-release.sh --pub <public key PEM or X.509 certificate PEM> --fingerprint sha256:<hex>
+#                             (--build <id> | --manifest-sha384 <hex> | --not-before <YYYY-MM-DD[THH:MM:SSZ]>)
 #                             [--name <name>] [--version <version>] file ...
 #
 # For each file it expects <file>.manifest and <file>.sig next to it, and accepts the file only when:
@@ -9,20 +10,27 @@
 #     a public key file alone proves nothing, since whoever can replace it can sign);
 #   - <file>.sig is that key's signature of <file>.manifest;
 #   - the signed manifest lists the file under its own name, with the file's SHA-384;
-#   - with --name / --version, the manifest is that release (pass --version to refuse an older signed release).
+#   - with --name / --version, the manifest is that release (pass --version to refuse an older signed release);
+#   - it is the build you expect: --build (the id the release publishes), or --manifest-sha384 (the SHA-384 of the
+#     signed manifest it publishes), or at least --not-before (the manifest was created then or later). One of them is
+#     required: otherwise an older signed build of the same version, a SNAPSHOT above all, verifies as this one.
 # <file>.sha384 is not signed and is not used. Exits 0 only when every file verifies.
 set -euo pipefail
+export LC_ALL=C                     # byte-wise string comparison of the UTC timestamps
 
 die() { echo "verify-release: $*" >&2; exit 1; }
 
-PUB="" PIN="" NAME="" VERSION=""
+PUB="" PIN="" NAME="" VERSION="" BUILD="" MSHA="" NOTBEFORE=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --pub) PUB="${2:-}"; shift 2 ;;
         --fingerprint) PIN="${2:-}"; shift 2 ;;
         --name) NAME="${2:-}"; shift 2 ;;
         --version) VERSION="${2:-}"; shift 2 ;;
-        -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
+        --build) BUILD="${2:-}"; shift 2 ;;
+        --manifest-sha384) MSHA="$(printf '%s' "${2:-}" | sed 's/^sha384://' | tr 'A-F' 'a-f')"; shift 2 ;;
+        --not-before) NOTBEFORE="${2:-}"; shift 2 ;;
+        -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
         --) shift; break ;;
         -*) die "unknown option $1" ;;
         *) break ;;
@@ -31,6 +39,14 @@ done
 command -v openssl >/dev/null || die "openssl is not installed"
 [ -n "$PUB" ] && [ -f "$PUB" ] || die "--pub <public key or certificate PEM> is required"
 [ -n "$PIN" ] || die "--fingerprint sha256:<hex> is required: the SHA-256 of the release's public key, as the release publishes it"
+[ -n "$BUILD" ] || [ -n "$MSHA" ] || [ -n "$NOTBEFORE" ] || die "say which build you expect: --build <id> or --manifest-sha384 <hex> (both published with the release), or at least --not-before <date>; otherwise an older signed build of the same version verifies"
+if [ -n "$NOTBEFORE" ]; then
+    case "$NOTBEFORE" in
+        [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) NOTBEFORE="${NOTBEFORE}T00:00:00Z" ;;
+        [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z) ;;
+        *) die "--not-before takes YYYY-MM-DD or YYYY-MM-DDTHH:MM:SSZ (UTC), not $NOTBEFORE" ;;
+    esac
+fi
 [ $# -gt 0 ] || die "no files to verify"
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
@@ -61,6 +77,9 @@ for f in "$@"; do
     mname="$(awk '$1=="name" && NF==2 {print $2; exit}' "$m")"
     mver="$(awk '$1=="version" && NF==2 {print $2; exit}' "$m")"
     mkey="$(awk '$1=="signing-key" && NF==2 {print $2; exit}' "$m")"
+    mbuild="$(awk '$1=="build" && NF==2 {print $2; exit}' "$m")"
+    mcreated="$(awk '$1=="created" && NF==2 {print $2; exit}' "$m")"
+    mhash="$(openssl dgst -sha384 -r "$m" | cut -d' ' -f1)"
     count="$(F="$name" awk '$1=="sha384" && NF==3 && $3==ENVIRON["F"]' "$m" | wc -l | tr -d ' ')"
     listed="$(F="$name" awk '$1=="sha384" && NF==3 && $3==ENVIRON["F"] {print $2}' "$m" | head -1)"
     got="$(openssl dgst -sha384 -r "$f" | cut -d' ' -f1)"
@@ -79,7 +98,16 @@ for f in "$@"; do
     if [ -n "$VERSION" ] && [ "$mver" != "$VERSION" ]; then
         echo "FAIL $name: it is signed as $mname $mver, not version $VERSION"; fail=1; continue
     fi
-    echo "OK   $name  ($mname $mver)  sha384:$got"
+    if [ -n "$BUILD" ] && [ "$mbuild" != "$BUILD" ]; then
+        echo "FAIL $name: it is signed as build ${mbuild:-(none)}, not $BUILD"; fail=1; continue
+    fi
+    if [ -n "$MSHA" ] && [ "$mhash" != "$MSHA" ]; then
+        echo "FAIL $name: its signed manifest is sha384:$mhash, not the published $MSHA"; fail=1; continue
+    fi
+    if [ -n "$NOTBEFORE" ] && { [ -z "$mcreated" ] || [[ "$mcreated" < "$NOTBEFORE" ]]; }; then
+        echo "FAIL $name: it was signed ${mcreated:-at an unknown time}, before $NOTBEFORE"; fail=1; continue
+    fi
+    echo "OK   $name  ($mname $mver, build ${mbuild:-?}, signed $mcreated)  sha384:$got"
 done
 [ $fail -eq 0 ] || die "verification FAILED"
 echo "all files verified (key sha256:$keyfp)"

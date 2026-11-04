@@ -2,7 +2,7 @@
 # Sign an agent release (the agent jar and its CycloneDX SBOM) with an operator-held key.
 #
 #   scripts/sign-release.sh --key <private key PEM> [--passin <src>] [--name <name>] [--version <version>]
-#                           [--out <dir>] [file ...]
+#                           [--build <id>] [--out <dir>] [file ...]
 #
 # The files signed together are one release. The script writes a release manifest that names the release, its version
 # and the signing key, and lists the SHA-384 of every file; it signs the manifest, not the bare bytes, so the signature
@@ -16,6 +16,10 @@
 #
 # Name and version: --name / --version, else from the files named <name>-<version>.jar or <name>-<version>.cdx.json
 # (target/agent-1.3.jar is agent 1.3). Files whose names disagree with each other or with --name / --version are refused.
+# Build: the manifest also names this exact build, so an older signed build of the same (SNAPSHOT) version cannot pass
+# as this one: --build, else the jar's Implementation-Version (version, git revision and build time, written by the
+# build), else the signing time and this repository's git revision. The script prints the build id and the manifest's
+# SHA-384; publish both with the fingerprint (scripts/verify-release.sh --build / --manifest-sha384 check them).
 #
 # The key: EC P-384 (or P-521) or RSA-3072+, owner-only (mode 0600 or 0400, no ACL), owned by you, and never inside this
 # repository (the script refuses a key in the work tree). Make one once, offline, and keep it off the build host when
@@ -31,7 +35,7 @@ set -euo pipefail
 
 die() { echo "sign-release: $*" >&2; exit 1; }
 
-KEY="" PASSIN="" OUT="" NAME="" VERSION=""
+KEY="" PASSIN="" OUT="" NAME="" VERSION="" BUILD=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --key) KEY="${2:-}"; shift 2 ;;
@@ -39,7 +43,8 @@ while [ $# -gt 0 ]; do
         --out) OUT="${2:-}"; shift 2 ;;
         --name) NAME="${2:-}"; shift 2 ;;
         --version) VERSION="${2:-}"; shift 2 ;;
-        -h|--help) sed -n '2,33p' "$0"; exit 0 ;;
+        --build) BUILD="${2:-}"; shift 2 ;;
+        -h|--help) sed -n '2,38p' "$0"; exit 0 ;;
         --) shift; break ;;
         -*) die "unknown option $1" ;;
         *) break ;;
@@ -115,13 +120,32 @@ done
 [ -n "$NAME" ] && [ -n "$VERSION" ] || die "cannot tell the release name and version from the file names; give --name and --version"
 [[ "$NAME" =~ $safe ]] && [[ "$VERSION" =~ $safe ]] || die "the release name and version may use letters, digits and ._+- only"
 
+created="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+if [ -z "$BUILD" ]; then
+    for f in "$@"; do
+        case "$f" in *.jar)
+            if command -v unzip >/dev/null; then
+                BUILD="$( { unzip -p "$f" META-INF/MANIFEST.MF 2>/dev/null || true; } | tr -d '\r' | sed -n 's/^Implementation-Version: *//p' | head -1)"
+            fi
+            [ -n "$BUILD" ] && break ;;
+        esac
+    done
+fi
+if [ -z "$BUILD" ]; then
+    rev="$(git -C "$here" rev-parse --short=12 HEAD 2>/dev/null || true)"
+    [ -n "$rev" ] && [ -n "$(git -C "$here" status --porcelain 2>/dev/null | head -1)" ] && rev="$rev-dirty"
+    BUILD="$(printf '%s' "$created" | tr -d ':-')-${rev:-norev}"
+fi
+[[ "$BUILD" =~ $safe ]] || die "the build id may use letters, digits and ._+- only: $BUILD"
+
 manifest="$work/release.manifest"
 {
     echo "cresco-release-manifest 1"
     echo "name $NAME"
     echo "version $VERSION"
+    echo "build $BUILD"
     echo "signing-key sha256:$keyfp"
-    echo "created $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "created $created"
     for f in "$@"; do
         echo "sha384 $(openssl dgst -sha384 -r "$f" | cut -d' ' -f1) $(basename "$f")"
     done
@@ -139,5 +163,7 @@ for f in "$@"; do
     cp "$work/release.sig" "$dir/$b.sig"
     echo "signed $b  ($NAME $VERSION)  sha384:$sum"
 done
+msha="$(openssl dgst -sha384 -r "$manifest" | cut -d' ' -f1)"
 echo "signing key: $kind, public key fingerprint sha256:$keyfp"
-echo "verify with: scripts/verify-release.sh --pub release-signing.pub --fingerprint sha256:$keyfp --version $VERSION <files>"
+echo "build: $BUILD  (manifest sha384:$msha, created $created)"
+echo "verify with: scripts/verify-release.sh --pub release-signing.pub --fingerprint sha256:$keyfp --build $BUILD <files>"

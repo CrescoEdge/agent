@@ -85,7 +85,16 @@ plugin), so an offline build (`mvn -o`) writes it too, and a build that cannot w
   Inlined classes nobody names are still listed, by package root, with `cresco:identified=false`, and the build log
   prints a WARNING for each.
 
-Feed it to a vulnerability scanner (`grype sbom:target/agent-1.3-SNAPSHOT.cdx.json`, Dependency-Track, ...).
+A nested jar without a `pom.properties` takes its coordinates from its bundle's `Embedded-Artifacts` header, and a
+bundle's other `pom.properties` account for their own artifact's packages only, so sibling artifacts of one group
+(library.jar's siddhi-query-api, siddhi-query-compiler and siddhi-annotations beside siddhi-core) are listed too.
+
+Feed it to a vulnerability scanner (`grype sbom:target/agent-1.3-SNAPSHOT.cdx.json`, Dependency-Track, ...). The build
+itself refuses known-vulnerable components: `EmbeddedKnownVulnerabilitiesTest` walks every embedded jar's tree against
+an offline list (`src/test/resources/known-vulnerable-components.txt`, from OSV) and fails unless a dated waiver
+(`known-vulnerable-waivers.txt`: coordinates, jar, end date, reason) covers the finding; an expired waiver, or one that
+matches nothing, fails it too. Today's waivers: the stale embedded library.jar (guava 33.6.0-jre, c3p0 0.9.1.1) and
+logger.jar (log4j-core 2.24.3), until 2026-12-04, replaced at the final re-embed.
 
 A release is signed with an operator-held key, on any build host (a workstation, any Linux host or the DGX; no GitHub
 Actions):
@@ -102,10 +111,12 @@ scripts/sign-release.sh --key ~/keys/cresco-release.key            # target/agen
 ```
 
 The files signed together are one release. The script writes a release manifest (the release name and version, taken
-from the file names `agent-<version>.jar` / `.cdx.json` or given with `--name` / `--version`, the signing key's
-fingerprint, and the SHA-384 of every file), signs the manifest, and writes next to each file `<file>.manifest`,
+from the file names `agent-<version>.jar` / `.cdx.json` or given with `--name` / `--version`; the build id, `--build`
+or else the jar's `Implementation-Version`, which names the version, git revision and build time; the signing key's
+fingerprint; the time; and the SHA-384 of every file), signs the manifest, and writes next to each file `<file>.manifest`,
 `<file>.sig` (a detached SHA-384 ECDSA or RSA signature of the manifest) and `<file>.sha384` (`sha384sum -c` format, a
-convenience; not signed). It prints the SHA-256 fingerprint of the signing public key. Because the signature covers the
+convenience; not signed). It prints the SHA-256 fingerprint of the signing public key, the build id and the manifest's SHA-384: publish all
+three with the release. Because the signature covers the
 file names and the version, an older signed release cannot be served under a newer release's name. It refuses a key
 that is weaker than EC P-384 / RSA-3072, not owner-only (0600 or 0400, no ACL), not yours, or inside the repository
 (`.gitignore` also keeps `*.key`, `*.p12` and `release-signing*` out); the mode check reads `ls -ln`, so it works the
@@ -113,11 +124,13 @@ same on macOS, BSD and GNU/Linux. `--passin env:VAR` or `--passin file:PATH` sup
 non-interactively; `--out DIR` puts the outputs elsewhere.
 
 Anyone can check a release with the published public key (or an X.509 certificate for it). The fingerprint pin is
-required, and `--version` refuses any other release:
+required, and so is a build check: `--build <published build id>`, or `--manifest-sha384 <published hash>`, or at
+least `--not-before <YYYY-MM-DD>` (the manifest was signed then or later); without one, an older signed build of the
+same version, a SNAPSHOT above all, would verify as this one. `--version` refuses any other release:
 
 ```bash
-scripts/verify-release.sh --pub cresco-release.pub --fingerprint sha256:<published fingerprint> --version 1.3-SNAPSHOT \
-    agent-1.3-SNAPSHOT.jar agent-1.3-SNAPSHOT.cdx.json
+scripts/verify-release.sh --pub cresco-release.pub --fingerprint sha256:<published fingerprint> \
+    --build <published build id> --version 1.3-SNAPSHOT agent-1.3-SNAPSHOT.jar agent-1.3-SNAPSHOT.cdx.json
 ```
 
 It exits non-zero unless, for every file, `<file>.sig` is the pinned key's signature of `<file>.manifest` and the

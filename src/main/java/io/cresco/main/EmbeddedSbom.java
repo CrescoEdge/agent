@@ -208,7 +208,7 @@ public final class EmbeddedSbom {
                 } else if (n.toLowerCase().endsWith(".jar")) {
                     try (InputStream in = jf.getInputStream(e)) {
                         byte[] inner = in.readAllBytes();
-                        Map<String, Object> nc = nestedJar(jar.getName(), n, inner);
+                        Map<String, Object> nc = nestedJar(jar.getName(), n, inner, ctx);
                         nested.add(nc);
                         if (nc.get("group") != null) ctx.nestedCoordinates.put(nc.get("group") + ":" + nc.get("name"), n);
                         ctx.nestedPackages.addAll(packagesOf(inner));
@@ -216,10 +216,15 @@ public final class EmbeddedSbom {
                 }
             }
             own = ownCoordinates(poms, bsn);
+            if (own != null) ctx.ownGroup(own.getProperty("groupId"));
             for (Properties p : poms) {
-                ctx.ownGroup(p.getProperty("groupId"));
                 ctx.listedCoordinates.add(p.getProperty("groupId") + ":" + p.getProperty("artifactId"));
-                if (p != own) nested.add(maven(jar.getName(), p, null));
+                if (p != own) {
+                    // another artifact's pom.properties accounts for that artifact's packages only, not its whole group:
+                    // siddhi-core's left siddhi-query-api, -query-compiler and -annotations unlisted
+                    ctx.artifactRoot(p.getProperty("groupId"), p.getProperty("artifactId"));
+                    nested.add(maven(jar.getName(), p, null));
+                }
             }
             for (InlinedLibraries.Found f : InlinedLibraries.find(classPackages, ctx, path -> entryBytes(jf, path))) {
                 nested.add(inlined(jar.getName(), f));
@@ -323,7 +328,7 @@ public final class EmbeddedSbom {
         return out;
     }
 
-    private static Map<String, Object> nestedJar(String outer, String path, byte[] bytes) throws IOException {
+    private static Map<String, Object> nestedJar(String outer, String path, byte[] bytes, InlinedLibraries.Context ctx) throws IOException {
         Properties found = null;
         String bsn = null, version = null;
         try (JarInputStream in = new JarInputStream(new java.io.ByteArrayInputStream(bytes))) {
@@ -345,6 +350,17 @@ public final class EmbeddedSbom {
         }
         String file = path.substring(path.lastIndexOf('/') + 1);
         Map<String, Object> c;
+        if (found == null && ctx != null) {
+            // no pom.properties inside: the bundle's own Embedded-Artifacts header names this file's coordinates
+            String[] gav = ctx.embeddedFileCoordinates(file);
+            if (gav != null) {
+                Properties p = new Properties();
+                p.setProperty("groupId", gav[0]);
+                p.setProperty("artifactId", gav[1]);
+                p.setProperty("version", gav[2]);
+                found = p;
+            }
+        }
         if (found != null) {
             c = maven(outer, found, path);
         } else {

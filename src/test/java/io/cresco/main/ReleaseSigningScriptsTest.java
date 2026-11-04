@@ -75,10 +75,75 @@ class ReleaseSigningScriptsTest {
         return signed.out.replaceAll("(?s).*fingerprint (sha256:[0-9a-f]{64}).*", "$1");
     }
 
+    /** verify-release.sh with the pin; a build check (--not-before, a date long past) unless the test names one. */
     static Run verify(Path pub, String fp, String... rest) throws Exception {
         List<String> c = new ArrayList<>(List.of(SCRIPTS.resolve("verify-release.sh").toString(), "--pub", pub.toString(), "--fingerprint", fp));
-        c.addAll(List.of(rest));
+        List<String> r = List.of(rest);
+        if (!r.contains("--build") && !r.contains("--manifest-sha384") && !r.contains("--not-before")) c.addAll(List.of("--not-before", "2000-01-01"));
+        c.addAll(r);
         return run(c.toArray(new String[0]));
+    }
+
+    static String field(String out, String regex) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile(regex).matcher(out);
+        assertTrue(m.find(), regex + " in " + out);
+        return m.group(1);
+    }
+
+    /** Two signed builds of the same SNAPSHOT version: the older one, served for the newer, is refused by its build id. */
+    @Test
+    void anOlderSignedBuildOfTheSameVersionIsRefused(@TempDir Path dir) throws Exception {
+        Path k = key(dir, "release.key", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-384");
+        Path pub = pub(k);
+        Path oldDir = Files.createDirectories(dir.resolve("old")), newDir = Files.createDirectories(dir.resolve("new"));
+        Path oldJar = Files.writeString(oldDir.resolve("agent-1.3-SNAPSHOT.jar"), "monday's build, with the bug");
+        Path newJar = Files.writeString(newDir.resolve("agent-1.3-SNAPSHOT.jar"), "friday's build, fixed");
+        Run so = run(SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), "--build", "1.3-SNAPSHOT.aaaaa.20261102-0900", oldJar.toString());
+        assertEquals(0, so.code, so.out);
+        Run sn = run(SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), "--build", "1.3-SNAPSHOT.bbbbb.20261106-1700", newJar.toString());
+        assertEquals(0, sn.code, sn.out);
+        String fp = fingerprint(sn);
+        assertEquals("1.3-SNAPSHOT.bbbbb.20261106-1700", field(sn.out, "build: (\\S+)"));
+        String newManifestSha = field(sn.out, "manifest sha384:([0-9a-f]{96})");
+        assertTrue(Files.readString(newDir.resolve("agent-1.3-SNAPSHOT.jar.manifest")).contains("\nbuild 1.3-SNAPSHOT.bbbbb.20261106-1700\n"));
+
+        // the attacker serves monday's signed build under friday's release
+        Run b = verify(pub, fp, "--build", "1.3-SNAPSHOT.bbbbb.20261106-1700", oldJar.toString());
+        assertNotEquals(0, b.code);
+        assertTrue(b.out.contains("signed as build 1.3-SNAPSHOT.aaaaa.20261102-0900, not 1.3-SNAPSHOT.bbbbb.20261106-1700"), b.out);
+        Run h = verify(pub, fp, "--manifest-sha384", "sha384:" + newManifestSha, oldJar.toString());
+        assertNotEquals(0, h.code);
+        assertTrue(h.out.contains("not the published"), h.out);
+        assertEquals(0, verify(pub, fp, "--build", "1.3-SNAPSHOT.bbbbb.20261106-1700", newJar.toString()).code);
+        assertEquals(0, verify(pub, fp, "--manifest-sha384", newManifestSha, newJar.toString()).code);
+        Run nb = verify(pub, fp, "--not-before", "2999-01-01", newJar.toString());
+        assertNotEquals(0, nb.code);
+        assertTrue(nb.out.contains("before 2999-01-01T00:00:00Z"), nb.out);
+        assertNotEquals(0, verify(pub, fp, "--not-before", "yesterday", newJar.toString()).code);
+
+        // no build check at all: refused
+        Run none = run(SCRIPTS.resolve("verify-release.sh").toString(), "--pub", pub.toString(), "--fingerprint", fp, newJar.toString());
+        assertNotEquals(0, none.code);
+        assertTrue(none.out.contains("say which build you expect"), none.out);
+    }
+
+    /** Without --build, a jar's Implementation-Version (version, git revision, build time) is the build id. */
+    @Test
+    void theJarsOwnBuildIdentityIsTheDefault(@TempDir Path dir) throws Exception {
+        Path k = key(dir, "release.key", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-384");
+        java.util.jar.Manifest mf = new java.util.jar.Manifest();
+        mf.getMainAttributes().putValue("Manifest-Version", "1.0");
+        mf.getMainAttributes().putValue("Implementation-Version", "1.3-SNAPSHOT.c0ffe.20261104-1745");
+        Path jar = dir.resolve("agent-1.3-SNAPSHOT.jar");
+        try (java.io.OutputStream o = Files.newOutputStream(jar); java.util.jar.JarOutputStream j = new java.util.jar.JarOutputStream(o, mf)) {
+            j.putNextEntry(new java.util.jar.JarEntry("x.txt"));
+            j.write(1);
+            j.closeEntry();
+        }
+        Run s = run(SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), jar.toString());
+        assertEquals(0, s.code, s.out);
+        assertEquals("1.3-SNAPSHOT.c0ffe.20261104-1745", field(s.out, "build: (\\S+)"));
+        assertEquals(0, verify(pub(k), fingerprint(s), "--build", "1.3-SNAPSHOT.c0ffe.20261104-1745", jar.toString()).code);
     }
 
     @Test
@@ -93,12 +158,13 @@ class ReleaseSigningScriptsTest {
         String fp = fingerprint(s);
         String manifest = Files.readString(dir.resolve("agent-1.3.jar.manifest"));
         assertEquals(manifest, Files.readString(dir.resolve("agent-1.3.cdx.json.manifest")), "one manifest per release");
-        assertTrue(manifest.startsWith("cresco-release-manifest 1\nname agent\nversion 1.3\nsigning-key " + fp + "\n"), manifest);
+        assertTrue(manifest.startsWith("cresco-release-manifest 1\nname agent\nversion 1.3\nbuild "), manifest);
+        assertTrue(manifest.contains("\nsigning-key " + fp + "\n"), manifest);
         assertTrue(manifest.matches("(?s).*\nsha384 [0-9a-f]{96} agent-1\\.3\\.jar\nsha384 [0-9a-f]{96} agent-1\\.3\\.cdx\\.json\n"), manifest);
         Path pub = pub(k);
         Run v = verify(pub, fp, "--version", "1.3", "--name", "agent", jar.toString(), sbom.toString());
         assertEquals(0, v.code, v.out);
-        assertTrue(v.out.contains("OK   agent-1.3.jar  (agent 1.3)"), v.out);
+        assertTrue(v.out.contains("OK   agent-1.3.jar  (agent 1.3, build "), v.out);
 
         // no pinned fingerprint: refused, whatever the files
         Run nopin = run(SCRIPTS.resolve("verify-release.sh").toString(), "--pub", pub.toString(), jar.toString());

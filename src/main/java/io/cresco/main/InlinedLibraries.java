@@ -113,6 +113,10 @@ final class InlinedLibraries {
             new Known("org.owasp.encoder", "encoder", "org/owasp/encoder"),
             new Known("org.mvel", "mvel2", "org/mvel2"),
             new Known("com.github.oshi", "oshi-core", "oshi"),
+            new Known("io.siddhi", "siddhi-core", "io/siddhi/core"),
+            new Known("io.siddhi", "siddhi-query-api", "io/siddhi/query/api"),
+            new Known("io.siddhi", "siddhi-query-compiler", "io/siddhi/query/compiler"),
+            new Known("io.siddhi", "siddhi-annotations", "io/siddhi/annotation"),
             new Known("javax.servlet", "javax.servlet-api", "javax/servlet"),
             new Known("jakarta.servlet", "jakarta.servlet-api", "jakarta/servlet"),
             new Known("net.sf.kxml", "kxml2", "org/kxml2"),
@@ -160,8 +164,42 @@ final class InlinedLibraries {
         final Map<String, String> dependencies = new LinkedHashMap<>();        // group:artifact to META-INF/DEPENDENCIES version
         String bundleVersion;
 
+        /** The {group, artifact, version} the bundle's Embedded-Artifacts header gives an embedded file, or null. */
+        String[] embeddedFileCoordinates(String file) {
+            for (Map.Entry<String, String> e : embeddedFiles.entrySet()) {
+                if (file.equals(e.getValue()) || e.getValue().endsWith("/" + file)) {
+                    String ga = e.getKey();
+                    int colon = ga.indexOf(':');
+                    String v = embeddedArtifacts.get(ga);
+                    if (colon > 0 && v != null) return new String[]{ga.substring(0, colon), ga.substring(colon + 1), v};
+                }
+            }
+            return null;
+        }
+
         void ownGroup(String dotted) {
             if (dotted != null && !dotted.isBlank()) ownPrefixes.add(dotted.trim().replace('.', '/'));
+        }
+
+        /**
+         * The packages an inlined artifact's own pom.properties accounts for: its known roots ({@link #KNOWN}), else
+         * its group plus its artifact id less the group's last segment ({@code io.siddhi:siddhi-core} is
+         * {@code io/siddhi/core}). Never the whole group: sibling artifacts of that group stay to be listed.
+         */
+        void artifactRoot(String group, String artifact) {
+            if (group == null || artifact == null || group.isBlank() || artifact.isBlank()) return;
+            boolean known = false;
+            for (Known k : KNOWN) {
+                if (k.group.equals(group) && k.artifact.equals(artifact)) {
+                    for (String r : k.roots) if (!r.endsWith("/*")) ownPrefixes.add(r);
+                    known = true;
+                }
+            }
+            if (known) return;
+            String g = group.trim(), last = g.substring(g.lastIndexOf('.') + 1);
+            String a = artifact.trim();
+            if (a.startsWith(last + "-")) a = a.substring(last.length() + 1);
+            ownPrefixes.add(g.replace('.', '/') + "/" + a.replace('-', '/').replace('.', '/'));
         }
     }
 

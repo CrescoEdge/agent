@@ -1,0 +1,8 @@
+# Known-vulnerable components the agent ships for now, each with an end date and why. A waiver past its date, or one
+# that matches nothing any more, fails the build (EmbeddedKnownVulnerabilitiesTest), so waivers do not outlive their
+# reason.
+#
+#   group:artifact@version   embedded jar   until (YYYY-MM-DD)   reason
+com.google.guava:guava@33.6.0-jre                  library.jar   2026-12-04   the embedded library.jar is stale; replaced at the final re-embed (guava 33.7.2+)
+c3p0:c3p0@0.9.1.1                                  library.jar   2026-12-04   the embedded library.jar is stale; the hardening library removed c3p0; replaced at the final re-embed
+org.apache.logging.log4j:log4j-core@2.24.3         logger.jar    2026-12-04   the embedded logger.jar is stale (log4j-core 2.25.4+ needed); replaced at the final re-embed
