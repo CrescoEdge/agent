@@ -65,6 +65,68 @@ class EmbeddedSbomTest {
         assertEquals(List.of("pkg:maven/x/y@1", "embedded:org.osgi.util.function-1.2.0.jar", "embedded:wsapi.jar"), rootDeps.get("dependsOn"));
     }
 
+    static byte[] jarBytes(Map<String, byte[]> entries, String... manifestAttrs) throws Exception {
+        java.util.jar.Manifest mf = new java.util.jar.Manifest();
+        mf.getMainAttributes().putValue("Manifest-Version", "1.0");
+        for (int i = 0; i < manifestAttrs.length; i += 2) mf.getMainAttributes().putValue(manifestAttrs[i], manifestAttrs[i + 1]);
+        java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+        try (java.util.jar.JarOutputStream jo = new java.util.jar.JarOutputStream(bos, mf)) {
+            for (Map.Entry<String, byte[]> e : entries.entrySet()) {
+                jo.putNextEntry(new java.util.jar.JarEntry(e.getKey()));
+                jo.write(e.getValue());
+                jo.closeEntry();
+            }
+        }
+        return bos.toByteArray();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void aBundlesInlinedLibrariesAreListedWithVersionsAndDeclaredArtifacts(@TempDir Path dir) throws Exception {
+        byte[] cls = {(byte) 0xCA, (byte) 0xFE, (byte) 0xBA, (byte) 0xBE};
+        Map<String, byte[]> nested = new java.util.LinkedHashMap<>();
+        nested.put("com/google/common/base/Strings.class", cls);
+        nested.put("META-INF/maven/com.google.guava/guava/pom.properties", "groupId=com.google.guava\nartifactId=guava\nversion=33.6.0-jre\n".getBytes(StandardCharsets.UTF_8));
+        Map<String, byte[]> entries = new java.util.LinkedHashMap<>();
+        entries.put("META-INF/maven/org.example/web/pom.properties", "groupId=org.example\nartifactId=web\nversion=5.1\n".getBytes(StandardCharsets.UTF_8));
+        entries.put("META-INF/DEPENDENCIES", ("  - Jetty org.eclipse.jetty:jetty-server:jar:11.0.21\n"
+                + "  - IO commons-io:commons-io:jar:2.11.0\n").getBytes(StandardCharsets.UTF_8));
+        entries.put("guava-33.6.0-jre.jar", jarBytes(nested));
+        entries.put("org/example/web/Main.class", cls);
+        entries.put("com/google/common/base/Strings.class", cls);                  // a copy of the nested jar's package
+        entries.put("org/eclipse/jetty/server/Server.class", cls);
+        entries.put("org/apache/commons/io/IOUtils.class", cls);
+        entries.put("com/lmax/disruptor/RingBuffer.class", cls);
+        entries.put("net/example/mystery/Thing.class", cls);
+        Path jars = Files.createDirectories(dir.resolve("classes"));
+        Files.write(jars.resolve("web.jar"), jarBytes(entries, "Bundle-SymbolicName", "org.example.web", "Bundle-Version", "5.1.0",
+                "Export-Package", "org.eclipse.jetty.server;version=\"11.0.21\",com.lmax.disruptor;version=\"3.4.2\"",
+                "Embedded-Artifacts", "guava-33.6.0-jre.jar;g=\"com.google.guava\";a=\"guava\";v=\"33.6.0-jre\""));
+        Path bom = dir.resolve("agent.cdx.json");
+        Files.writeString(bom, BOM);
+        EmbeddedSbom.complete(bom, jars.toFile());
+        Map<String, Object> b = (Map<String, Object>) EmbeddedSbom.Json.parse(Files.readString(bom));
+        Map<String, Object> web = (Map<String, Object>) ((List<Object>) b.get("components")).stream()
+                .filter(c -> "embedded:web.jar".equals(((Map<String, Object>) c).get("bom-ref"))).findFirst().orElseThrow();
+        Map<String, Map<String, Object>> sub = new java.util.LinkedHashMap<>();
+        for (Object o : (List<Object>) web.get("components")) sub.put((String) ((Map<String, Object>) o).get("bom-ref"), (Map<String, Object>) o);
+        assertEquals(java.util.Set.of("embedded:web.jar!guava-33.6.0-jre.jar", "embedded:web.jar!inlined:org/eclipse/jetty",
+                "embedded:web.jar!inlined:commons-io:commons-io", "embedded:web.jar!inlined:com.lmax:disruptor",
+                "embedded:web.jar!inlined:net/example/mystery"), sub.keySet(),
+                "own classes and the nested jar's packages are not inlined libraries");
+        Map<String, Object> io = sub.get("embedded:web.jar!inlined:commons-io:commons-io");
+        assertEquals("pkg:maven/commons-io/commons-io@2.11.0", io.get("purl"));
+        assertEquals("pkg:maven/com.lmax/disruptor@3.4.2", sub.get("embedded:web.jar!inlined:com.lmax:disruptor").get("purl"));
+        Map<String, Object> jetty = sub.get("embedded:web.jar!inlined:org/eclipse/jetty");
+        assertEquals("11.0.21", jetty.get("version"));
+        assertEquals("pkg:maven/org.eclipse.jetty/jetty-server@11.0.21",
+                ((Map<String, Object>) ((List<Object>) jetty.get("components")).get(0)).get("purl"), "the artifact the bundle declares");
+        Map<String, Object> mystery = sub.get("embedded:web.jar!inlined:net/example/mystery");
+        assertNull(mystery.get("purl"));
+        String props = EmbeddedSbom.Json.write(mystery.get("properties"));
+        assertTrue(props.contains("\"cresco:identified\"") && props.contains("\"false\"") && props.contains("net.example.mystery"), props);
+    }
+
     @Test
     void notABomIsRefused(@TempDir Path dir) throws Exception {
         Path bad = dir.resolve("x.json");

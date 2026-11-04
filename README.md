@@ -70,13 +70,25 @@ assembly; it can pull published snapshots, or you can stage locally-built bundle
 ## Release: SBOM and signatures
 
 Every `mvn package` writes a CycloneDX 1.6 software bill of materials next to the jar,
-`target/agent-<version>.cdx.json`. The CycloneDX Maven plugin lists the agent's Maven dependencies, and the build then
-adds what the agent jar really ships (`EmbeddedSbom`): every embedded bundle in `src/main/resources` (controller,
-library, wsapi, the Felix bundles, ...) with its Maven coordinates and purl (or OSGi name and version) and its SHA-256,
-SHA-384 and SHA-512, and under each the libraries it carries (for example wsapi's Netty and BouncyCastle). Feed it to a
-vulnerability scanner (`grype sbom:target/agent-1.3-SNAPSHOT.cdx.json`, Dependency-Track, ...).
+`target/agent-<version>.cdx.json`. The build writes it with its own code (`MavenSbom`, `EmbeddedSbom`; no extra Maven
+plugin), so an offline build (`mvn -o`) writes it too, and a build that cannot write it fails, saying why. It lists:
 
-A release is signed with an operator-held key, on any build host (a workstation or the DGX; no GitHub Actions):
+- the agent and the Maven dependencies the jar bundles: coordinates and purl, SHA-256/384/512, licenses and dependency
+  edges from the POMs Maven resolved;
+- every embedded bundle in `src/main/resources` (controller, library, wsapi, the Felix bundles, ...) with its Maven
+  coordinates and purl (or OSGi name and version) and SHA-256/384/512;
+- under each bundle, the libraries it carries: nested jars (for example wsapi's Netty and BouncyCastle), libraries named
+  by a `pom.properties`, and libraries inlined as bare classes without either (library.jar's LMAX Disruptor, Dropwizard
+  Metrics, ANTLR 4, ...). Inlined libraries are found by package and named from a table of known libraries
+  (`InlinedLibraries.KNOWN`), with the version from the bundle's `Embedded-Artifacts` or `Export-Package` header or a
+  version constant in the library; each carries `cresco:inlined-package-root` / `cresco:inlined-packages` properties.
+  Inlined classes nobody names are still listed, by package root, with `cresco:identified=false`, and the build log
+  prints a WARNING for each.
+
+Feed it to a vulnerability scanner (`grype sbom:target/agent-1.3-SNAPSHOT.cdx.json`, Dependency-Track, ...).
+
+A release is signed with an operator-held key, on any build host (a workstation, any Linux host or the DGX; no GitHub
+Actions):
 
 ```bash
 # once, offline: an EC P-384 key (RSA-3072+ also accepted), passphrase-protected, never in this repository
@@ -89,20 +101,29 @@ mvn -B clean package
 scripts/sign-release.sh --key ~/keys/cresco-release.key            # target/agent-*.jar and target/agent-*.cdx.json
 ```
 
-For each file it writes `<file>.sha384` (`sha384sum -c` / `shasum -a 384 -c` format) and `<file>.sig` (a detached
-SHA-384 ECDSA or RSA signature), and prints the SHA-256 fingerprint of the signing public key. It refuses a key that
-is weaker than EC P-384 / RSA-3072, readable by others (it must be 0600 or 0400), or inside the repository
-(`.gitignore` also keeps `*.key`, `*.p12` and `release-signing*` out). `--passin env:VAR` or `--passin file:PATH`
-supplies the passphrase non-interactively; `--out DIR` puts the outputs elsewhere.
+The files signed together are one release. The script writes a release manifest (the release name and version, taken
+from the file names `agent-<version>.jar` / `.cdx.json` or given with `--name` / `--version`, the signing key's
+fingerprint, and the SHA-384 of every file), signs the manifest, and writes next to each file `<file>.manifest`,
+`<file>.sig` (a detached SHA-384 ECDSA or RSA signature of the manifest) and `<file>.sha384` (`sha384sum -c` format, a
+convenience; not signed). It prints the SHA-256 fingerprint of the signing public key. Because the signature covers the
+file names and the version, an older signed release cannot be served under a newer release's name. It refuses a key
+that is weaker than EC P-384 / RSA-3072, not owner-only (0600 or 0400, no ACL), not yours, or inside the repository
+(`.gitignore` also keeps `*.key`, `*.p12` and `release-signing*` out); the mode check reads `ls -ln`, so it works the
+same on macOS, BSD and GNU/Linux. `--passin env:VAR` or `--passin file:PATH` supplies the passphrase
+non-interactively; `--out DIR` puts the outputs elsewhere.
 
-Anyone can check a release with the published public key (or an X.509 certificate for it), pinning its fingerprint:
+Anyone can check a release with the published public key (or an X.509 certificate for it). The fingerprint pin is
+required, and `--version` refuses any other release:
 
 ```bash
-scripts/verify-release.sh --pub cresco-release.pub --fingerprint sha256:<published fingerprint> \
+scripts/verify-release.sh --pub cresco-release.pub --fingerprint sha256:<published fingerprint> --version 1.3-SNAPSHOT \
     agent-1.3-SNAPSHOT.jar agent-1.3-SNAPSHOT.cdx.json
 ```
 
-It exits non-zero unless every file matches its checksum and its signature verifies with that key.
+It exits non-zero unless, for every file, `<file>.sig` is the pinned key's signature of `<file>.manifest` and the
+manifest lists the file under its own name with its SHA-384 (and, with `--version` / `--name`, names that release).
+Releases signed by the earlier per-file scheme (a `.sig` over the file itself, no `.manifest`) do not verify with this
+script; sign them again.
 
 ## Run
 

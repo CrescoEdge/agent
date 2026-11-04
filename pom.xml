@@ -111,35 +111,6 @@
                 </configuration>
             </plugin>
 
-            <!-- Software bill of materials (CycloneDX 1.6, JSON): target/agent-<version>.cdx.json. The plugin lists the
-                 agent's Maven dependencies; the "sbom-embedded" step below adds what the agent jar really ships,
-                 the embedded OSGi bundles and the libraries inside them, with their hashes. Runs on every
-                 `mvn package`, locally, on the DGX or in CI; sign the release with scripts/sign-release.sh. -->
-            <plugin>
-                <groupId>org.cyclonedx</groupId>
-                <artifactId>cyclonedx-maven-plugin</artifactId>
-                <version>2.9.3</version>
-                <executions>
-                    <execution>
-                        <id>sbom</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>makeBom</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <projectType>application</projectType>
-                    <schemaVersion>1.6</schemaVersion>
-                    <outputFormat>json</outputFormat>
-                    <outputName>${project.artifactId}-${project.version}.cdx</outputName>
-                    <includeTestScope>false</includeTestScope>
-                    <includeProvidedScope>false</includeProvidedScope>
-                    <includeSystemScope>true</includeSystemScope>
-                    <includeLicenseText>false</includeLicenseText>
-                </configuration>
-            </plugin>
-
             <!-- Build guard (CrescoEdge/agent#3): every embedded jar under src/main/resources must be
                  an OSGi bundle (Bundle-SymbolicName in its manifest). A controller.jar built
                  without bundle:bundle installs as an empty legacy bundle and the agent parks
@@ -166,8 +137,15 @@
                             </target>
                         </configuration>
                     </execution>
+                    <!-- Software bill of materials (CycloneDX 1.6, JSON): target/agent-<version>.cdx.json, on every
+                         `mvn package`. Written by the build's own code (MavenSbom + EmbeddedSbom), with no plugin
+                         beyond this one, so an offline build writes it too: the agent and its Maven runtime
+                         dependencies (coordinates, SHA-256/384/512, licenses and edges from the resolved POMs),
+                         every embedded bundle with its hashes, and the libraries each bundle carries (nested jars,
+                         pom.properties, and classes inlined without either). Any failure fails the build with the
+                         reason. Sign the release with scripts/sign-release.sh. -->
                     <execution>
-                        <id>sbom-embedded</id>
+                        <id>sbom</id>
                         <phase>package</phase>
                         <goals>
                             <goal>run</goal>
@@ -177,8 +155,13 @@
                                 <java classname="io.cresco.main.EmbeddedSbom"
                                       classpath="${project.build.outputDirectory}"
                                       fork="true" failonerror="true">
+                                    <arg value="--create"/>
                                     <arg value="${project.build.directory}/${project.artifactId}-${project.version}.cdx.json"/>
                                     <arg value="${project.build.outputDirectory}"/>
+                                    <arg value="${project.groupId}:${project.artifactId}:${project.version}"/>
+                                    <arg value="${project.basedir}/pom.xml"/>
+                                    <arg value="${settings.localRepository}"/>
+                                    <arg pathref="maven.runtime.classpath"/>
                                 </java>
                             </target>
                         </configuration>
