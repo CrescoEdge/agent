@@ -88,33 +88,8 @@ public class HostApplication {
         //LOG.info("Building OSGi Framework");
 
         // Create a configuration property map.
-        Map configMap = new HashMap();
-        // Export the host provided service interface package.
-
-        //configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*,javax.xml.*");
-        //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,javax.xml.*");
-
-
-        configMap.put("felix.log.level","1");
-        configMap.put("felix.systempackages.calculate.uses","true");
-        configMap.put("felix.systempackages.substitution","true");
-        configMap.put("ds.showtrace", "false");
-        configMap.put("ds.showerrors", "false");
-
-        configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*");
-        //configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,");
-        configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,org.graalvm.*");
-
-        // make sure the cache is cleaned
-        configMap.put(Constants.FRAMEWORK_STORAGE_CLEAN, Constants.FRAMEWORK_STORAGE_CLEAN_ONFIRSTINIT);
-        //set storage location
         String cresco_data_location = System.getProperty("cresco_data_location");
-        if(cresco_data_location != null) {
-            Path path = Paths.get(cresco_data_location, "felix-cache");
-            configMap.put(Constants.FRAMEWORK_STORAGE, path.toAbsolutePath().normalize().toString());
-        } else {
-            configMap.put(Constants.FRAMEWORK_STORAGE, "cresco-data/felix-cache");
-        }
+        Map configMap = frameworkProperties(cresco_data_location);
 
         // Record this agent's PID so a graceful shutdown can target it (AgentEngineShutdown/stop.sh).
         writePidFile(cresco_data_location);
@@ -134,8 +109,6 @@ public class HostApplication {
 
         //port
         configMap.put("org.osgi.service.http.port", httpPort);
-
-        configMap.put("obr.repository.url","http://felix.apache.org/obr/releases.xml");
 
         // Create host activator;
         m_activator = new HostActivator();
@@ -398,6 +371,34 @@ public class HostApplication {
                     + "; check that the embedded jar is a valid OSGi bundle built with 'mvn clean package bundle:bundle'", ex);
         }
 
+    }
+
+    /**
+     * The Felix framework properties that do not depend on run-time options. No remote repository is configured: the
+     * launcher used to set {@code obr.repository.url} to a plain-HTTP Felix OBR index, which nothing used (no OBR bundle is
+     * installed) and which, had one been, would have fetched bundles over an unauthenticated channel.
+     */
+    static Map<String, Object> frameworkProperties(String crescoDataLocation) {
+        Map<String, Object> configMap = new HashMap<>();
+        configMap.put("felix.log.level","1");
+        configMap.put("felix.systempackages.calculate.uses","true");
+        configMap.put("felix.systempackages.substitution","true");
+        configMap.put("ds.showtrace", "false");
+        configMap.put("ds.showerrors", "false");
+
+        configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*");
+        configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,org.graalvm.*");
+
+        // make sure the cache is cleaned
+        configMap.put(Constants.FRAMEWORK_STORAGE_CLEAN, Constants.FRAMEWORK_STORAGE_CLEAN_ONFIRSTINIT);
+        //set storage location
+        if(crescoDataLocation != null) {
+            Path path = Paths.get(crescoDataLocation, "felix-cache");
+            configMap.put(Constants.FRAMEWORK_STORAGE, path.toAbsolutePath().normalize().toString());
+        } else {
+            configMap.put(Constants.FRAMEWORK_STORAGE, "cresco-data/felix-cache");
+        }
+        return configMap;
     }
 
     private Bundle installInternalBundleJars(BundleContext context, String bundleName) {
