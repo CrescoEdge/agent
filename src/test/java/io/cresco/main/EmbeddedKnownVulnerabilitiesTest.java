@@ -3,157 +3,104 @@ package io.cresco.main;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * The build fails when an embedded jar's SBOM tree (the jar, its nested jars, the libraries it inlines and declares)
- * holds a component on the offline known-vulnerable list ({@code known-vulnerable-components.txt}), unless a dated
- * waiver ({@code known-vulnerable-waivers.txt}) covers it. An expired waiver, or one that matches nothing, fails too.
+ * The known-vulnerable-component gate (KnownVulnerabilityGate, a package-phase build step): its rules, and the
+ * repository's own lists against the embedded jars.
  */
 class EmbeddedKnownVulnerabilitiesTest {
 
-    record Rule(String group, String artifact, List<String> fixed, String ids) { }
+    static final LocalDate TODAY = LocalDate.of(2026, 11, 10);
 
-    record Waiver(String coordinates, String jar, LocalDate until, String reason) { }
-
-    static List<String> lines(String resource) throws IOException {
-        try (InputStream in = EmbeddedKnownVulnerabilitiesTest.class.getClassLoader().getResourceAsStream(resource)) {
-            assertNotNull(in, resource);
-            List<String> out = new ArrayList<>();
-            for (String l : new String(in.readAllBytes(), StandardCharsets.UTF_8).split("\n")) {
-                String t = l.strip();
-                if (!t.isEmpty() && !t.startsWith("#")) out.add(t);
-            }
-            return out;
-        }
+    static KnownVulnerabilityGate.Component comp(String jar, String group, String name, String version) {
+        return new KnownVulnerabilityGate.Component(jar, group, name, version);
     }
 
-    static List<Rule> rules() throws IOException {
-        List<Rule> out = new ArrayList<>();
-        for (String l : lines("known-vulnerable-components.txt")) {
-            String[] f = l.split("\\s+");
-            assertTrue(f.length >= 3, l);
-            String[] ga = f[0].split(":");
-            out.add(new Rule(ga[0], ga[1], List.of(f[1].split(",")), f[2]));
-        }
-        return out;
-    }
-
-    static List<Waiver> waivers() throws IOException {
-        List<Waiver> out = new ArrayList<>();
-        for (String l : lines("known-vulnerable-waivers.txt")) {
-            String[] f = l.split("\\s+", 4);
-            assertTrue(f.length == 4, "waiver needs coordinates@version, jar, until, reason: " + l);
-            out.add(new Waiver(f[0], f[1], LocalDate.parse(f[2]), f[3]));
-        }
-        return out;
-    }
-
-    /** Maven-like comparison: numeric parts numerically; alpha/beta/rc/milestone/snapshot below the release; other qualifiers (jre, final) ignored. */
-    static int compare(String a, String b) {
-        String[] x = a.toLowerCase().split("[.\\-_]"), y = b.toLowerCase().split("[.\\-_]");
-        for (int i = 0; i < Math.max(x.length, y.length); i++) {
-            int c = Long.compare(rank(i < x.length ? x[i] : null), rank(i < y.length ? y[i] : null));
-            if (c != 0) return c;
-            if (i < x.length && i < y.length && isNum(x[i]) && isNum(y[i])) {
-                c = new java.math.BigInteger(x[i]).compareTo(new java.math.BigInteger(y[i]));
-                if (c != 0) return c;
-            }
-        }
-        return 0;
-    }
-
-    static boolean isNum(String s) { return s != null && s.matches("[0-9]+"); }
-
-    /** Pre-releases below a release, a release (or an ignored qualifier) as 0 more, numbers compared separately. */
-    static long rank(String t) {
-        if (t == null) return 0;
-        if (isNum(t)) return 1;
-        if (t.matches("(alpha|a|beta|b|milestone|m|rc|cr|pre|preview|ea|snapshot)[0-9]*")) return -1;
-        return 0;
-    }
-
-    static String line(String v) {
-        String[] p = v.split("[.\\-_]");
-        return p.length >= 2 && isNum(p[0]) && isNum(p[1]) ? p[0] + "." + p[1] : p[0];
-    }
-
-    static boolean vulnerable(Rule r, String version) {
-        if (version == null || version.equals("unknown")) return false;
-        if (r.fixed().equals(List.of("*"))) return true;
-        String newest = r.fixed().get(0);
-        for (String f : r.fixed()) {
-            if (line(f).equals(line(version))) return compare(version, f) < 0;
-            if (compare(f, newest) > 0) newest = f;
-        }
-        return compare(version, newest) < 0;
-    }
-
-    @SuppressWarnings("unchecked")
-    static void walk(List<Object> comps, String jar, List<String[]> out) {
-        for (Object o : comps) {
-            Map<String, Object> c = (Map<String, Object>) o;
-            if (c.get("group") != null) out.add(new String[]{jar, (String) c.get("group"), (String) c.get("name"), (String) c.get("version")});
-            if (c.get("components") instanceof List) walk((List<Object>) c.get("components"), jar, out);
-        }
-    }
-
-    static List<String[]> embedded() throws Exception {
-        File dir = new File(HostApplication.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-        File[] jars = dir.listFiles((d, n) -> n.endsWith(".jar"));
-        assertNotNull(jars);
-        List<String[]> out = new ArrayList<>();
-        for (File j : jars) walk(List.of((Object) EmbeddedSbom.component(j)), j.getName(), out);
-        return out;
+    static List<String> check(List<KnownVulnerabilityGate.Component> comps, String waiver, String allow) {
+        List<String> problems = new ArrayList<>();
+        List<KnownVulnerabilityGate.Rule> rules = KnownVulnerabilityGate.rules(List.of("commons-io:commons-io 2.14.0 CVE-2024-47554"), problems);
+        List<KnownVulnerabilityGate.Waiver> w = KnownVulnerabilityGate.waivers(waiver == null ? List.of() : List.of(waiver), problems);
+        List<KnownVulnerabilityGate.Allowed> a = KnownVulnerabilityGate.allowed(allow == null ? List.of() : List.of(allow), problems);
+        problems.addAll(KnownVulnerabilityGate.check(comps, rules, w, a, TODAY));
+        return problems;
     }
 
     @Test
     void versionsCompareLikeMaven() {
-        assertTrue(compare("2.11.0", "2.14.0") < 0);
-        assertTrue(compare("33.6.0-jre", "33.7.2") < 0);
-        assertTrue(compare("12.1.0.beta3", "12.1.0") < 0);
-        assertEquals(0, compare("33.7.2-jre", "33.7.2"));
-        assertTrue(compare("12.1.14", "12.1.10") > 0);
-        Rule jetty = new Rule("org.eclipse.jetty", "jetty-server", List.of("12.1.10", "12.0.36", "11.0.31"), "x");
-        assertTrue(vulnerable(jetty, "11.0.21"));
-        assertTrue(vulnerable(jetty, "12.0.10"));
-        assertFalse(vulnerable(jetty, "12.1.14"));
-        assertTrue(vulnerable(jetty, "9.4.50"), "an older line none of the fixes names");
-        assertFalse(vulnerable(new Rule("commons-io", "commons-io", List.of("2.14.0"), "x"), "2.22.0"));
-        assertTrue(vulnerable(new Rule("c3p0", "c3p0", List.of("*"), "x"), "0.9.1.1"));
-        assertFalse(vulnerable(jetty, "unknown"));
+        assertTrue(KnownVulnerabilityGate.compare("2.11.0", "2.14.0") < 0);
+        assertTrue(KnownVulnerabilityGate.compare("33.6.0-jre", "33.7.2") < 0);
+        assertTrue(KnownVulnerabilityGate.compare("12.1.0.beta3", "12.1.0") < 0);
+        assertEquals(0, KnownVulnerabilityGate.compare("33.7.2-jre", "33.7.2"));
+        assertTrue(KnownVulnerabilityGate.compare("12.1.14", "12.1.10") > 0);
+        KnownVulnerabilityGate.Rule jetty = new KnownVulnerabilityGate.Rule("org.eclipse.jetty", "jetty-server",
+                List.of("12.1.10", "12.0.36", "11.0.31"), "x");
+        assertTrue(KnownVulnerabilityGate.vulnerable(jetty, "11.0.21"));
+        assertTrue(KnownVulnerabilityGate.vulnerable(jetty, "12.0.10"));
+        assertFalse(KnownVulnerabilityGate.vulnerable(jetty, "12.1.14"));
+        assertTrue(KnownVulnerabilityGate.vulnerable(jetty, "9.4.50"), "an older line none of the fixes names");
+        assertTrue(KnownVulnerabilityGate.vulnerable(new KnownVulnerabilityGate.Rule("c3p0", "c3p0", List.of("*"), "x"), "0.9.1.1"));
     }
 
     @Test
-    void noEmbeddedJarShipsAKnownVulnerableComponentWithoutADatedWaiver() throws Exception {
-        List<Rule> rules = rules();
-        List<Waiver> waivers = waivers();
-        Set<Waiver> used = new LinkedHashSet<>();
-        List<String> findings = new ArrayList<>();
-        for (String[] c : embedded()) {
-            for (Rule r : rules) {
-                if (!r.group().equals(c[1]) || !r.artifact().equals(c[2]) || !vulnerable(r, c[3])) continue;
-                String coords = c[1] + ":" + c[2] + "@" + c[3];
-                Waiver w = waivers.stream().filter(x -> x.coordinates().equals(coords) && x.jar().equals(c[0])).findFirst().orElse(null);
-                if (w == null) findings.add(c[0] + " ships " + coords + " (" + r.ids() + ")");
-                else used.add(w);
-            }
+    void aKnownVulnerableComponentNeedsAValidDatedReviewedWaiver() {
+        List<KnownVulnerabilityGate.Component> c = List.of(comp("felix-http.jar", "commons-io", "commons-io", "2.11.0"));
+        assertTrue(check(c, null, null).get(0).contains("felix-http.jar ships commons-io:commons-io@2.11.0 (CVE-2024-47554)"));
+        assertEquals(List.of(), check(c, "commons-io:commons-io@2.11.0 felix-http.jar since=2026-11-04 until=2026-12-04 reviewer=alice "
+                + "replaced at the next re-embed of that bundle", null));
+        String longWaiver = "commons-io:commons-io@2.11.0 felix-http.jar since=2026-11-04 until=2027-01-04 reviewer=alice a reason long enough";
+        assertTrue(check(c, longWaiver, null).stream().anyMatch(p -> p.contains("at most 30 days")), "a waiver lasts at most 30 days");
+        assertTrue(check(c, "commons-io:commons-io@2.11.0 felix-http.jar since=2026-11-04 until=2026-11-20 reviewer= x", null)
+                .stream().anyMatch(p -> p.contains("waiver refused")), "a reviewer is required");
+        assertTrue(check(c, "commons-io:commons-io@2.11.0 felix-http.jar since=2026-11-04 until=2026-11-20 reviewer=alice short", null)
+                .stream().anyMatch(p -> p.contains("no reason")), "a reason is required");
+        assertTrue(check(c, "commons-io:commons-io@2.11.0 felix-http.jar since=2026-10-01 until=2026-10-30 reviewer=alice an old waiver past its end", null)
+                .stream().anyMatch(p -> p.contains("expired")));
+        assertTrue(check(c, "commons-io:commons-io@2.11.0 felix-http.jar since=2026-12-01 until=2026-12-20 reviewer=alice dated after today on purpose", null)
+                .stream().anyMatch(p -> p.contains("future")));
+        assertTrue(check(List.of(comp("felix-http.jar", "commons-io", "commons-io", "2.22.0")),
+                "commons-io:commons-io@2.11.0 felix-http.jar since=2026-11-04 until=2026-12-04 reviewer=alice the old copy is gone now", null)
+                .stream().anyMatch(p -> p.contains("matches nothing")), "an unused waiver fails");
+    }
+
+    @Test
+    void aComponentOfUnknownVersionNeedsAReviewedAllowance() {
+        List<KnownVulnerabilityGate.Component> c = List.of(comp("sysinfo.jar", "com.github.oshi", "oshi-core", "unknown"),
+                comp("library.jar", null, "org.example.thing", null));
+        List<String> p = check(c, null, null);
+        assertEquals(2, p.size(), p.toString());
+        assertTrue(p.get(0).contains("unknown version"));
+        List<String> one = check(c, null, "sysinfo.jar com.github.oshi:oshi-core reviewer=alice inlined beside its nested jar, reviewed");
+        assertEquals(1, one.size(), one.toString());
+        assertTrue(one.get(0).contains("org.example.thing"));
+        assertTrue(check(List.of(), null, "sysinfo.jar com.github.oshi:oshi-core reviewer=alice inlined beside its nested jar, reviewed")
+                .stream().anyMatch(x -> x.contains("matches nothing")));
+        assertTrue(check(List.of(), null, "sysinfo.jar com.github.oshi:oshi-core no reviewer here at all")
+                .stream().anyMatch(x -> x.contains("allowance refused")));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void theRepositoryListsAreWellFormedAndTheEmbeddedJarsPassThem() throws Exception {
+        List<String> problems = new ArrayList<>();
+        List<KnownVulnerabilityGate.Rule> rules = KnownVulnerabilityGate.rules(KnownVulnerabilityGate.read(Paths.get("sbom", "known-vulnerable-components.txt")), problems);
+        List<KnownVulnerabilityGate.Waiver> waivers = KnownVulnerabilityGate.waivers(KnownVulnerabilityGate.read(Paths.get("sbom", "waivers.txt")), problems);
+        List<KnownVulnerabilityGate.Allowed> allowed = KnownVulnerabilityGate.allowed(KnownVulnerabilityGate.read(Paths.get("sbom", "unknown-version-allowlist.txt")), problems);
+        assertEquals(List.of(), problems, "the lists in sbom/ parse");
+        File dir = new File(HostApplication.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+        File[] jars = dir.listFiles((d, n) -> n.endsWith(".jar"));
+        assertNotNull(jars);
+        List<KnownVulnerabilityGate.Component> comps = new ArrayList<>();
+        for (File j : jars) {
+            Map<String, Object> c = EmbeddedSbom.component(j);
+            KnownVulnerabilityGate.walk(List.of((Object) c), null, comps);
         }
-        assertEquals(List.of(), findings, "known-vulnerable components without a waiver");
-        LocalDate today = LocalDate.now();
-        for (Waiver w : waivers) {
-            assertFalse(today.isAfter(w.until()), "waiver expired on " + w.until() + ": " + w.coordinates() + " in " + w.jar() + " (" + w.reason() + ")");
-            assertTrue(used.contains(w), "waiver matches nothing any more, remove it: " + w.coordinates() + " in " + w.jar());
-        }
+        assertEquals(List.of(), KnownVulnerabilityGate.check(comps, rules, waivers, allowed, LocalDate.now(java.time.ZoneOffset.UTC)));
     }
 }

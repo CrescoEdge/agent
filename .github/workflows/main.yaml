@@ -20,7 +20,8 @@ jobs:
       - name: Download Dependencies
         run: bash prebuild.sh
       - name: Build with Maven
-        run: mvn package -Dmaven.test.skip=true
+        # tests run, and the known-vulnerable-component gate is a package-phase build step either way
+        run: mvn -B package
 
       - uses: dev-drprasad/delete-tag-and-release@v0.2.1
         with:

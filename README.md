@@ -90,11 +90,22 @@ bundle's other `pom.properties` account for their own artifact's packages only, 
 (library.jar's siddhi-query-api, siddhi-query-compiler and siddhi-annotations beside siddhi-core) are listed too.
 
 Feed it to a vulnerability scanner (`grype sbom:target/agent-1.3-SNAPSHOT.cdx.json`, Dependency-Track, ...). The build
-itself refuses known-vulnerable components: `EmbeddedKnownVulnerabilitiesTest` walks every embedded jar's tree against
-an offline list (`src/test/resources/known-vulnerable-components.txt`, from OSV) and fails unless a dated waiver
-(`known-vulnerable-waivers.txt`: coordinates, jar, end date, reason) covers the finding; an expired waiver, or one that
-matches nothing, fails it too. Today's waivers: the stale embedded library.jar (guava 33.6.0-jre, c3p0 0.9.1.1) and
-logger.jar (log4j-core 2.24.3), until 2026-12-04, replaced at the final re-embed.
+itself refuses known-vulnerable components: `KnownVulnerabilityGate` is a build step in the package phase, right after
+the SBOM (not a unit test, so `-DskipTests` and `-Dmaven.test.skip=true` do not skip it). It checks every component of
+the SBOM (the agent's Maven dependencies, every embedded jar, the jars nested in them, the libraries they inline or
+declare) and fails the build when:
+
+- a component is on the offline known-vulnerable list, `sbom/known-vulnerable-components.txt` (from OSV; extend it
+  when OSV reports more), and no waiver in `sbom/waivers.txt` covers it. A waiver names the coordinates and version, the
+  embedded jar, `since=` and `until=` dates at most 30 days apart, `reviewer=` and a reason; a malformed, expired,
+  future-dated or unused waiver fails the build too;
+- a component's version is unknown (nothing in the jar records it, so no list can judge it) and it is not on the
+  reviewed allowlist `sbom/unknown-version-allowlist.txt` (jar, coordinates, `reviewer=`, reason), or an allowance
+  matches nothing any more.
+
+Today's waivers: the stale embedded library.jar (guava 33.6.0-jre, c3p0 0.9.1.1) and logger.jar (log4j-core 2.24.3),
+until 2026-12-04, replaced at the final re-embed. Allowed of unknown version: the OSHI classes inlined by executor.jar
+and sysinfo.jar, and LatencyUtils in library.jar.
 
 A release is signed with an operator-held key, on any build host (a workstation, any Linux host or the DGX; no GitHub
 Actions):
@@ -124,9 +135,11 @@ same on macOS, BSD and GNU/Linux. `--passin env:VAR` or `--passin file:PATH` sup
 non-interactively; `--out DIR` puts the outputs elsewhere.
 
 Anyone can check a release with the published public key (or an X.509 certificate for it). The fingerprint pin is
-required, and so is a build check: `--build <published build id>`, or `--manifest-sha384 <published hash>`, or at
-least `--not-before <YYYY-MM-DD>` (the manifest was signed then or later); without one, an older signed build of the
-same version, a SNAPSHOT above all, would verify as this one. `--version` refuses any other release:
+required, and so is a build check: `--build <published build id>` or `--manifest-sha384 <published hash>` (use one of
+these), or at least `--not-before <YYYY-MM-DD>`; without one, an older signed build of the same version, a SNAPSHOT
+above all, would verify as this one. `--not-before` is the weak one: it only refuses builds signed before that date,
+so any other build signed since (yesterday's SNAPSHOT, say) still passes; use it only when the release named no build
+id or manifest hash. `--version` refuses any other release:
 
 ```bash
 scripts/verify-release.sh --pub cresco-release.pub --fingerprint sha256:<published fingerprint> \

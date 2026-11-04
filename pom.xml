@@ -166,6 +166,27 @@
                             </target>
                         </configuration>
                     </execution>
+                    <!-- The known-vulnerable-component gate: a build step, not a unit test, so -DskipTests and
+                         -Dmaven.test.skip=true do not skip it. It reads the SBOM just written and fails the build on a
+                         known-vulnerable component without a valid (dated, reviewed, at most 30-day) waiver, or a
+                         component of unknown version not on the reviewed allowlist (sbom/, KnownVulnerabilityGate). -->
+                    <execution>
+                        <id>known-vulnerability-gate</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <java classname="io.cresco.main.KnownVulnerabilityGate"
+                                      classpath="${project.build.outputDirectory}"
+                                      fork="true" failonerror="true">
+                                    <arg value="${project.build.directory}/${project.artifactId}-${project.version}.cdx.json"/>
+                                    <arg value="${project.basedir}/sbom"/>
+                                </java>
+                            </target>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
 

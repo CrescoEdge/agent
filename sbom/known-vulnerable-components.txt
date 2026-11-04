@@ -1,4 +1,5 @@
-# Components the agent must not ship (EmbeddedKnownVulnerabilitiesTest checks every embedded jar's SBOM tree against it).
+# Components the agent must not ship. The build's KnownVulnerabilityGate (package phase, after the SBOM; not skipped
+# with tests) checks every component of target/agent-*.cdx.json against it.
 # An offline list, from OSV (api.osv.dev) for what the agent has shipped; extend it when OSV reports more.
 #
 #   group:artifact   fixed versions (comma-separated, one per release line) or * (every version)   advisory ids

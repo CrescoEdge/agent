@@ -11,9 +11,10 @@
 #   - <file>.sig is that key's signature of <file>.manifest;
 #   - the signed manifest lists the file under its own name, with the file's SHA-384;
 #   - with --name / --version, the manifest is that release (pass --version to refuse an older signed release);
-#   - it is the build you expect: --build (the id the release publishes), or --manifest-sha384 (the SHA-384 of the
-#     signed manifest it publishes), or at least --not-before (the manifest was created then or later). One of them is
-#     required: otherwise an older signed build of the same version, a SNAPSHOT above all, verifies as this one.
+#   - it is the build you expect: --build (the id the release publishes) or --manifest-sha384 (the SHA-384 of the signed
+#     manifest it publishes); use one of these. --not-before (the manifest was created then or later) is weak: any build
+#     signed since that date passes; use it only when the release named neither. One of the three is required:
+#     otherwise an older signed build of the same version, a SNAPSHOT above all, verifies as this one.
 # <file>.sha384 is not signed and is not used. Exits 0 only when every file verifies.
 set -euo pipefail
 export LC_ALL=C                     # byte-wise string comparison of the UTC timestamps
@@ -30,7 +31,7 @@ while [ $# -gt 0 ]; do
         --build) BUILD="${2:-}"; shift 2 ;;
         --manifest-sha384) MSHA="$(printf '%s' "${2:-}" | sed 's/^sha384://' | tr 'A-F' 'a-f')"; shift 2 ;;
         --not-before) NOTBEFORE="${2:-}"; shift 2 ;;
-        -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
         --) shift; break ;;
         -*) die "unknown option $1" ;;
         *) break ;;
@@ -40,6 +41,9 @@ command -v openssl >/dev/null || die "openssl is not installed"
 [ -n "$PUB" ] && [ -f "$PUB" ] || die "--pub <public key or certificate PEM> is required"
 [ -n "$PIN" ] || die "--fingerprint sha256:<hex> is required: the SHA-256 of the release's public key, as the release publishes it"
 [ -n "$BUILD" ] || [ -n "$MSHA" ] || [ -n "$NOTBEFORE" ] || die "say which build you expect: --build <id> or --manifest-sha384 <hex> (both published with the release), or at least --not-before <date>; otherwise an older signed build of the same version verifies"
+if [ -n "$NOTBEFORE" ] && [ -z "$BUILD" ] && [ -z "$MSHA" ]; then
+    echo "verify-release: WARNING: --not-before only refuses builds signed before $NOTBEFORE; any build signed since passes. Prefer --build or --manifest-sha384." >&2
+fi
 if [ -n "$NOTBEFORE" ]; then
     case "$NOTBEFORE" in
         [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) NOTBEFORE="${NOTBEFORE}T00:00:00Z" ;;

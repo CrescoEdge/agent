@@ -1,0 +1,8 @@
+# Components whose version nothing in the agent jar records, so no known-vulnerable list can judge them. The build's
+# KnownVulnerabilityGate refuses every other such component, and an entry that matches nothing any more. Each entry
+# needs a reviewer and the reason the component is acceptable; review again when the jar changes.
+#
+#   embedded jar   group:artifact (or name)   reviewer=<who>   reason
+executor.jar  com.github.oshi:oshi-core        reviewer=agent-b-hardening  OSHI classes the executor bundle inlines beside its nested oshi-core-7.3.2.jar (listed with its version); no OSHI advisory in OSV; confirm at the executor's next re-embed
+sysinfo.jar   com.github.oshi:oshi-core        reviewer=agent-b-hardening  OSHI classes the sysinfo bundle inlines beside its nested oshi-core-7.3.2.jar (listed with its version); no OSHI advisory in OSV; confirm at the sysinfo re-embed
+library.jar   org.latencyutils:LatencyUtils    reviewer=agent-b-hardening  LatencyUtils (micrometer's pause detection) inlined without a version; no advisory in OSV for any version; the library re-embed should record it
