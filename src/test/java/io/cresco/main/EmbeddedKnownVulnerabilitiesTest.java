@@ -76,13 +76,32 @@ class EmbeddedKnownVulnerabilitiesTest {
         List<String> p = check(c, null, null);
         assertEquals(2, p.size(), p.toString());
         assertTrue(p.get(0).contains("unknown version"));
-        List<String> one = check(c, null, "sysinfo.jar com.github.oshi:oshi-core reviewer=alice inlined beside its nested jar, reviewed");
+        String dated = "sysinfo.jar com.github.oshi:oshi-core since=2026-11-04 until=2026-12-04 reviewer=alice inlined beside its nested jar, reviewed";
+        List<String> one = check(c, null, dated);
         assertEquals(1, one.size(), one.toString());
         assertTrue(one.get(0).contains("org.example.thing"));
-        assertTrue(check(List.of(), null, "sysinfo.jar com.github.oshi:oshi-core reviewer=alice inlined beside its nested jar, reviewed")
-                .stream().anyMatch(x -> x.contains("matches nothing")));
+        assertTrue(check(List.of(), null, dated).stream().anyMatch(x -> x.contains("matches nothing")));
         assertTrue(check(List.of(), null, "sysinfo.jar com.github.oshi:oshi-core no reviewer here at all")
                 .stream().anyMatch(x -> x.contains("allowance refused")));
+    }
+
+    @Test
+    void anUnknownVersionAllowanceExpiresLikeAWaiver() {
+        List<KnownVulnerabilityGate.Component> c = List.of(comp("sysinfo.jar", "com.github.oshi", "oshi-core", "unknown"));
+        List<String> undated = check(c, null, "sysinfo.jar com.github.oshi:oshi-core reviewer=alice inlined beside its nested jar, reviewed");
+        assertTrue(undated.stream().anyMatch(x -> x.contains("allowance refused") && x.contains("expires within 30 days")),
+                "an allowance without an expiry is refused: " + undated);
+        assertTrue(undated.stream().anyMatch(x -> x.contains("unknown version")), "and the component is then not allowed");
+        assertTrue(check(c, null, "sysinfo.jar com.github.oshi:oshi-core since=2026-11-04 until=2027-01-04 reviewer=alice a reason long enough")
+                .stream().anyMatch(x -> x.contains("at most 30 days")), "at most 30 days");
+        assertTrue(check(c, null, "sysinfo.jar com.github.oshi:oshi-core since=2026-10-01 until=2026-10-30 reviewer=alice an old allowance past its end")
+                .stream().anyMatch(x -> x.contains("allowance expired on 2026-10-30")));
+        assertTrue(check(c, null, "sysinfo.jar com.github.oshi:oshi-core since=2026-12-01 until=2026-12-20 reviewer=alice dated after today on purpose")
+                .stream().anyMatch(x -> x.contains("allowance dated in the future")));
+        assertTrue(check(c, null, "sysinfo.jar com.github.oshi:oshi-core since=2026-11-04 until=2026-12-04 reviewer= x")
+                .stream().anyMatch(x -> x.contains("allowance refused (no reviewer)")));
+        assertEquals(List.of(), check(c, null, "sysinfo.jar com.github.oshi:oshi-core since=2026-11-04 until=2026-12-04 reviewer=alice "
+                + "inlined beside its nested jar, reviewed"));
     }
 
     @Test

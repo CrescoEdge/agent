@@ -1,6 +1,7 @@
 # Known-vulnerable components the agent ships for now. KnownVulnerabilityGate fails the build for a waiver that is
 # malformed, lacks a reviewer or a reason, lasts more than 30 days from its date, has expired, is dated in the future,
-# or matches nothing any more. Renew one only after a new review, with a new date.
+# or matches nothing any more. Renew one only after a new review, with a new date. Changes here need the owner's review
+# (CODEOWNERS; enforced where branch protection requires code-owner reviews).
 #
 #   group:artifact@version   embedded jar   since=YYYY-MM-DD   until=YYYY-MM-DD (<= since + 30)   reviewer=<who>   reason
 com.google.guava:guava@33.6.0-jre          library.jar  since=2026-11-04  until=2026-12-04  reviewer=coordinator-review-api-r2  the embedded library.jar is stale; the coordinator's review decided it is replaced at the final re-embed (guava 33.7.2+)

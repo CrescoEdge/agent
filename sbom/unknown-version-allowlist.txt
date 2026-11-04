@@ -1,8 +1,10 @@
 # Components whose version nothing in the agent jar records, so no known-vulnerable list can judge them. The build's
-# KnownVulnerabilityGate refuses every other such component, and an entry that matches nothing any more. Each entry
-# needs a reviewer and the reason the component is acceptable; review again when the jar changes.
+# KnownVulnerabilityGate refuses every other such component. Like a waiver, an entry expires: it fails the build when it
+# is malformed (no since= / until= included), lacks a reviewer or a reason, lasts more than 30 days from its date, has
+# expired, is dated in the future, or matches nothing any more. Renew one only after a new review, with a new date.
+# Changes here need the owner's review (CODEOWNERS; enforced where branch protection requires code-owner reviews).
 #
-#   embedded jar   group:artifact (or name)   reviewer=<who>   reason
-executor.jar  com.github.oshi:oshi-core        reviewer=agent-b-hardening  OSHI classes the executor bundle inlines beside its nested oshi-core-7.3.2.jar (listed with its version); no OSHI advisory in OSV; confirm at the executor's next re-embed
-sysinfo.jar   com.github.oshi:oshi-core        reviewer=agent-b-hardening  OSHI classes the sysinfo bundle inlines beside its nested oshi-core-7.3.2.jar (listed with its version); no OSHI advisory in OSV; confirm at the sysinfo re-embed
-library.jar   org.latencyutils:LatencyUtils    reviewer=agent-b-hardening  LatencyUtils (micrometer's pause detection) inlined without a version; no advisory in OSV for any version; the library re-embed should record it
+#   embedded jar   group:artifact (or name)   since=YYYY-MM-DD   until=YYYY-MM-DD (<= since + 30)   reviewer=<who>   reason
+executor.jar  com.github.oshi:oshi-core        since=2026-11-04  until=2026-12-04  reviewer=agent-b-hardening  OSHI classes the executor bundle inlines beside its nested oshi-core-7.3.2.jar (listed with its version); no OSHI advisory in OSV; confirm at the executor's next re-embed
+sysinfo.jar   com.github.oshi:oshi-core        since=2026-11-04  until=2026-12-04  reviewer=agent-b-hardening  OSHI classes the sysinfo bundle inlines beside its nested oshi-core-7.3.2.jar (listed with its version); no OSHI advisory in OSV; confirm at the sysinfo re-embed
+library.jar   org.latencyutils:LatencyUtils    since=2026-11-04  until=2026-12-04  reviewer=agent-b-hardening  LatencyUtils (micrometer's pause detection) inlined without a version; no advisory in OSV for any version; the library re-embed should record it

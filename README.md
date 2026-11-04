@@ -100,12 +100,20 @@ declare) and fails the build when:
   embedded jar, `since=` and `until=` dates at most 30 days apart, `reviewer=` and a reason; a malformed, expired,
   future-dated or unused waiver fails the build too;
 - a component's version is unknown (nothing in the jar records it, so no list can judge it) and it is not on the
-  reviewed allowlist `sbom/unknown-version-allowlist.txt` (jar, coordinates, `reviewer=`, reason), or an allowance
-  matches nothing any more.
+  reviewed allowlist `sbom/unknown-version-allowlist.txt` (jar, coordinates, `since=` and `until=` dates at most 30 days
+  apart, `reviewer=`, reason). An allowance expires like a waiver: one without dates (the earlier format), lasting more
+  than 30 days, expired, future-dated or matching nothing any more fails the build.
 
 Today's waivers: the stale embedded library.jar (guava 33.6.0-jre, c3p0 0.9.1.1) and logger.jar (log4j-core 2.24.3),
-until 2026-12-04, replaced at the final re-embed. Allowed of unknown version: the OSHI classes inlined by executor.jar
-and sysinfo.jar, and LatencyUtils in library.jar.
+until 2026-12-04, replaced at the final re-embed. Allowed of unknown version, until 2026-12-04: the OSHI classes inlined
+by executor.jar and sysinfo.jar, and LatencyUtils in library.jar.
+
+**Who reviews an exception.** `reviewer=` is free text, so it cannot stop someone from approving their own waiver.
+`CODEOWNERS` names the owner (`@codybum`) for `sbom/**`, the gate and SBOM code, `pom.xml` (which wires the gate) and the
+release scripts, so a pull request that changes them asks for the owner's approval. **GitHub enforces that only where
+branch protection (or a ruleset) on the target branch has "Require review from Code Owners" turned on**, and only for
+changes made through pull requests; without it the owner is asked but a merge is not blocked, and a direct push is not
+reviewed at all. Turning that protection on for the release branches is a repository setting for the owner.
 
 A release is signed with an operator-held key, on any build host (a workstation, any Linux host or the DGX; no GitHub
 Actions):

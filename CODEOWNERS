@@ -1,0 +1,28 @@
+# Code owners: a pull request that changes these paths needs the owner's approval.
+#
+# The build's known-vulnerable-component gate and its exceptions (waivers, unknown-version allowances) are reviewed by
+# the owner, not by whoever commits them: a waiver's reviewer= is free text, so this file is what makes a second person
+# look at it. GitHub ENFORCES this only where branch protection (or a ruleset) on the target branch has "Require review
+# from Code Owners" turned on, and only for changes that arrive as pull requests; without that it requests the owner's
+# review but does not block the merge, and a direct push is not reviewed at all.
+#
+# Later lines take precedence over earlier ones, so the owner of each path is listed in full.
+
+# the gate's exceptions and its lists
+/sbom/**                                                    @codybum
+
+# the gate, the SBOM it reads, the embedded-bundle check, and the build that runs them (pom.xml can turn them off)
+/pom.xml                                                    @codybum
+/src/main/java/io/cresco/main/KnownVulnerabilityGate.java   @codybum
+/src/main/java/io/cresco/main/MavenSbom.java                @codybum
+/src/main/java/io/cresco/main/EmbeddedSbom.java             @codybum
+/src/main/java/io/cresco/main/InlinedLibraries.java         @codybum
+/src/main/java/io/cresco/main/EmbeddedBundleCheck.java      @codybum
+
+# release signing and verification
+/scripts/sign-release.sh                                    @codybum
+/scripts/verify-release.sh                                  @codybum
+
+# this file
+/CODEOWNERS                                                 @codybum
+/.github/                                                   @codybum
