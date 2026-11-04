@@ -69,7 +69,18 @@ public class HostApplication {
     private Bundle libraryBundle = null;
     private Bundle consoleBundle = null;
     private Bundle jettyBundle = null;
-    private Bundle baseBundle = null;
+
+    /** The Servlet API (javax and jakarta contracts), installed always: bundles that serve HTTP import it. */
+    static final String SERVLET_API_JAR = "org.apache.felix.http.servlet-api-6.1.0.jar";
+    /**
+     * The WebConsole's HTTP service, installed only with the console: the all-in-one Felix HTTP Jetty 12 bundle (it
+     * carries the Felix HTTP base and Jetty itself). wsapi does not use it: it serves its WebSockets with Netty.
+     */
+    static final String HTTP_JETTY_JAR = "org.apache.felix.http.jetty12-2.0.10.jar";
+    /** The WebConsole and what it imports beyond the HTTP service. */
+    static final String WEBCONSOLE_JAR = "org.apache.felix.webconsole-5.1.0.jar";
+    static final String INVENTORY_JAR = "org.apache.felix.inventory-2.0.0.jar";
+    static final String ENCODER_JAR = "encoder-1.6.0.jar";
 
     /** Pidfile for THIS agent (written on boot, removed on shutdown) so a graceful shutdown can
      *  target it — see {@link AgentEngineShutdown} and run/stop.sh. */
@@ -131,7 +142,6 @@ public class HostApplication {
                         // bundle that never reaches RESOLVED cannot hang JVM shutdown indefinitely.
                         stopBundleAndWait(consoleBundle);
                         stopBundleAndWait(jettyBundle);
-                        stopBundleAndWait(baseBundle);
                         // controller, core, library, logger
                         stopBundleAndWait(getController());
                         stopBundleAndWait(coreBundle);
@@ -264,26 +274,19 @@ public class HostApplication {
             // fail to resolve (missing org.osgi.service.component >=1.5.0).
             installInternalBundleJars(bc,"org.osgi.service.component-1.5.1.jar");
 
-            installInternalBundleJars(bc, "org.apache.felix.http.servlet-api-3.0.0.jar").start();
+            installInternalBundleJars(bc, SERVLET_API_JAR).start();
 
             if(enableConsole) {
-
-                installInternalBundleJars(bc, "commons-io-2.22.0.jar");
-                installInternalBundleJars(bc, "commons-fileupload-1.5.jar");
-                installInternalBundleJars(bc, "org.osgi.service.useradmin-1.1.1.jar");
-
-                baseBundle = installInternalBundleJars(bc, "org.apache.felix.http.jetty12-1.0.8.jar");
-                baseBundle = installInternalBundleJars(bc, "org.apache.felix.inventory-1.1.0.jar");
-                baseBundle = installInternalBundleJars(bc, "encoder-1.2.3.jar");
-                //baseBundle.start();
-
-                baseBundle = installInternalBundleJars(bc, "org.apache.felix.http.base-5.1.8.jar");
-                baseBundle.start();
-
-                jettyBundle = installInternalBundleJars(bc, "org.apache.felix.http.jetty-5.1.16.jar");
+                // One HTTP service, Felix HTTP Jetty 12. Until 1.3 hardening the console also installed Felix HTTP
+                // Jetty 5 (Jetty 11, which served it), an unused Jetty 12 bundle, a second Felix HTTP base, and
+                // commons-io, commons-fileupload and UserAdmin bundles only that base needed; the Jetty bundles also
+                // inlined commons-io 2.11.0, commons-fileupload 1.5 and Jetty versions with known CVEs.
+                installInternalBundleJars(bc, INVENTORY_JAR);
+                installInternalBundleJars(bc, ENCODER_JAR);
+                jettyBundle = installInternalBundleJars(bc, HTTP_JETTY_JAR);
                 jettyBundle.start();
 
-                consoleBundle = installInternalBundleJars(bc, "org.apache.felix.webconsole-5.0.18.jar");
+                consoleBundle = installInternalBundleJars(bc, WEBCONSOLE_JAR);
                 consoleBundle.start();
             }
 

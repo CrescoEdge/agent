@@ -129,7 +129,7 @@ class ConsoleSettingsTest {
     @Test
     void theEmbeddedWebConsoleAcceptsTheHashAndOnlyForThatPassword(@TempDir Path dir) throws Exception {
         Path jar = dir.resolve("webconsole.jar");
-        try (InputStream in = getClass().getClassLoader().getResourceAsStream("org.apache.felix.webconsole-5.0.18.jar")) {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(HostApplication.WEBCONSOLE_JAR)) {
             assertNotNull(in, "embedded webconsole jar");
             Files.copy(in, jar, StandardCopyOption.REPLACE_EXISTING);
         }

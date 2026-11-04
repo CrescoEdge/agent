@@ -146,8 +146,13 @@ Configuration is via `-D` system properties, `CRESCO_*` environment variables, o
 
 ### Felix WebConsole
 
-`enable_console=true` starts the Felix WebConsole (`/system/console`) only when it can be secured; otherwise the agent
-logs `WebConsole console NOT started: <why>` at SEVERE and runs without it:
+`enable_console=true` starts the Felix WebConsole (`/system/console`, WebConsole 5.1.0) only when it can be secured;
+otherwise the agent logs `WebConsole console NOT started: <why>` at SEVERE and runs without it. It is served by Felix
+HTTP Jetty 12 (`org.apache.felix.http.jetty12` 2.0.10, Jetty 12.1.14), the one HTTP service the agent ships and
+installed only with the console; wsapi serves its WebSockets with Netty and needs none. (Before 1.3 hardening the
+console ran on Felix HTTP Jetty 5 / Jetty 11 beside an unused Jetty 12 bundle, a second Felix HTTP base and its
+commons-io / commons-fileupload / UserAdmin bundles; those bundles and their inlined copies carried known CVEs, see
+the SBOM.)
 
 - **Credentials are required**: `console_username` and `console_password_file` (an owner-only file: mode 0600 or
   0400, owned by the agent's user, in a directory no one else can write) or `console_password`. The password needs at
