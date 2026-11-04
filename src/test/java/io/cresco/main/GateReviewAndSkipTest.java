@@ -60,9 +60,28 @@ class GateReviewAndSkipTest {
     }
 
     @Test
+    void theGateWritesTheMarkerTheAssemblyNeedsAndPutsInTheManifest() throws Exception {
+        Element gate = antrunExecutions().get("known-vulnerability-gate");
+        assertEquals("true", text(gate, "exportAntProperties"), "the gate's marker becomes Maven properties");
+        String pom = Files.readString(Paths.get("pom.xml"));
+        for (String arg : List.of("<arg value=\"${project.build.outputDirectory}\"/>", "<arg value=\"${project.build.directory}/gate\"/>",
+                "<loadproperties srcFile=\"${project.build.directory}/gate/marker.properties\"/>",
+                "<Cresco-Gate>${cresco.gate.marker}</Cresco-Gate>", "<Cresco-Gate-Files>${cresco.gate.files}</Cresco-Gate-Files>")) {
+            assertTrue(pom.contains(arg), "pom.xml: " + arg);
+        }
+        String assembly = Files.readString(Paths.get("src", "assemble", "bin.xml"));
+        assertTrue(assembly.contains("<source>${project.build.directory}/gate/META-INF/cresco/sbom.cdx.json</source>")
+                && assembly.contains("<source>${project.build.directory}/gate/META-INF/cresco/embedded.sha384</source>"),
+                "the assembly takes the gate's SBOM and list (and fails without them)");
+        for (String script : List.of("sign-release.sh", "verify-release.sh")) {
+            assertTrue(Files.readString(Paths.get("scripts", script)).contains("gate_check()"), script + " checks the gate marker");
+        }
+    }
+
+    @Test
     void theOwnerReviewsTheGateItsExceptionsAndItsWiring() throws Exception {
         String owners = Files.readString(Paths.get("CODEOWNERS"));
-        for (String path : List.of("/sbom/**", "/pom.xml", "/src/main/java/io/cresco/main/KnownVulnerabilityGate.java",
+        for (String path : List.of("/sbom/**", "/pom.xml", "/src/assemble/**", "/src/main/java/io/cresco/main/KnownVulnerabilityGate.java",
                 "/src/main/java/io/cresco/main/EmbeddedSbom.java", "/src/main/java/io/cresco/main/MavenSbom.java", "/CODEOWNERS")) {
             assertTrue(owners.lines().map(String::strip).anyMatch(l -> l.startsWith(path + " ") && l.endsWith("@codybum")),
                     "CODEOWNERS: " + path + " @codybum");

@@ -192,8 +192,17 @@
                                       fork="true" failonerror="true">
                                     <arg value="${project.build.directory}/${project.artifactId}-${project.version}.cdx.json"/>
                                     <arg value="${project.basedir}/sbom"/>
+                                    <!-- the SBOM must be this build's (every embedded jar, with its SHA-384); on a pass the
+                                         gate writes its marker here: marker.properties (the manifest's Cresco-Gate) and
+                                         META-INF/cresco/{sbom.cdx.json,embedded.sha384}, which the assembly needs -->
+                                    <arg value="${project.build.outputDirectory}"/>
+                                    <arg value="${project.build.directory}/gate"/>
                                 </java>
+                                <!-- reached only when the gate passed (failonerror): its marker becomes Maven properties
+                                     for the assembly's manifest (exportAntProperties) -->
+                                <loadproperties srcFile="${project.build.directory}/gate/marker.properties"/>
                             </target>
+                            <exportAntProperties>true</exportAntProperties>
                         </configuration>
                     </execution>
                 </executions>
@@ -213,6 +222,11 @@
                             <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
                         </manifest>
                         <manifestEntries>
+                            <!-- the known-vulnerability gate's marker, exported by the gate's execution only when it
+                                 passed; scripts/sign-release.sh refuses a jar without a valid one -->
+                            <Cresco-Gate>${cresco.gate.marker}</Cresco-Gate>
+                            <Cresco-Gate-Files>${cresco.gate.files}</Cresco-Gate-Files>
+                            <Cresco-Gate-Date>${cresco.gate.date}</Cresco-Gate-Date>
                             <artifactId>cresco-agent</artifactId>
                             <Implementation-Version>${project.version}.${buildNumber}.${maven.build.timestamp}</Implementation-Version>
                         </manifestEntries>

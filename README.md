@@ -118,6 +118,17 @@ branch protection (or a ruleset) on the target branch has "Require review from C
 changes made through pull requests; without it the owner is asked but a merge is not blocked, and a direct push is not
 reviewed at all. Turning that protection on for the release branches is a repository setting for the owner.
 
+**The gate's marker in the jar.** When the gate passes it also checks that the SBOM is this build's (every embedded jar
+in it with its SHA-384, and no other), and writes its marker, which the assembly puts into the agent jar: the manifest's
+`Cresco-Gate: passed sha384:<the SBOM's SHA-384>`, `Cresco-Gate-Files: sha384:<the list's SHA-384>` and
+`Cresco-Gate-Date`, the SBOM itself as `META-INF/cresco/sbom.cdx.json`, and `META-INF/cresco/embedded.sha384`, the SHA-384
+of every embedded jar. The assembly takes the SBOM and the list from the gate's output, so after `mvn clean`, `mvn
+compile assembly:single` fails; with an older build's output left in `target/`, the jar it assembles has an empty
+`Cresco-Gate`. Either way, `scripts/sign-release.sh` signs a jar only with a valid marker whose hashes match the jar's
+own entries (and a `.cdx.json` signed with it only when it is that SBOM), and `scripts/verify-release.sh` checks the same
+(with unzip and openssl, never by running the jar). Before, `mvn compile assembly:single` built a fat jar with no gate and
+no SBOM, and the signing script signed it.
+
 A release is signed with an operator-held key, on any build host (a workstation, any Linux host or the DGX; no GitHub
 Actions):
 
@@ -129,7 +140,7 @@ openssl pkey -in ~/keys/cresco-release.key -pubout -out cresco-release.pub      
 
 # each release
 mvn -B clean package
-scripts/sign-release.sh --key ~/keys/cresco-release.key            # target/agent-*.jar and target/agent-*.cdx.json
+scripts/sign-release.sh --key ~/keys/cresco-release.key            # target/agent-*.jar and target/agent-*.cdx.json (needs unzip)
 ```
 
 The files signed together are one release. The script writes a release manifest (the release name and version, taken
@@ -158,8 +169,8 @@ scripts/verify-release.sh --pub cresco-release.pub --fingerprint sha256:<publish
 ```
 
 It exits non-zero unless, for every file, `<file>.sig` is the pinned key's signature of `<file>.manifest` and the
-manifest lists the file under its own name with its SHA-384 (and, with `--version` / `--name`, names that release).
-Releases signed by the earlier per-file scheme (a `.sig` over the file itself, no `.manifest`) do not verify with this
+manifest lists the file under its own name with its SHA-384 (and, with `--version` / `--name`, names that release), and
+every jar carries a valid known-vulnerability gate marker (above). Releases signed by the earlier per-file scheme (a `.sig` over the file itself, no `.manifest`) do not verify with this
 script; sign them again.
 
 ## Run

@@ -17,4 +17,16 @@
             <outputDirectory>/</outputDirectory>
         </fileSet>
     </fileSets>
+    <!-- the known-vulnerability gate's marker (KnownVulnerabilityGate, written only when it passes): the SBOM it checked
+         and the SHA-384 of every embedded jar, which scripts/sign-release.sh and verify-release.sh check against the jar -->
+    <files>
+        <file>
+            <source>${project.build.directory}/gate/META-INF/cresco/sbom.cdx.json</source>
+            <outputDirectory>META-INF/cresco</outputDirectory>
+        </file>
+        <file>
+            <source>${project.build.directory}/gate/META-INF/cresco/embedded.sha384</source>
+            <outputDirectory>META-INF/cresco</outputDirectory>
+        </file>
+    </files>
 </assembly>

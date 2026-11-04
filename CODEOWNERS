@@ -11,8 +11,10 @@
 # the gate's exceptions and its lists
 /sbom/**                                                    @codybum
 
-# the gate, the SBOM it reads, the embedded-bundle check, and the build that runs them (pom.xml can turn them off)
+# the gate, the SBOM it reads, the embedded-bundle check, and the build that runs them (pom.xml can turn them off,
+# src/assemble/ puts the gate's marker into the jar)
 /pom.xml                                                    @codybum
+/src/assemble/**                                            @codybum
 /src/main/java/io/cresco/main/KnownVulnerabilityGate.java   @codybum
 /src/main/java/io/cresco/main/MavenSbom.java                @codybum
 /src/main/java/io/cresco/main/EmbeddedSbom.java             @codybum

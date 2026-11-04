@@ -71,6 +71,57 @@ class ReleaseSigningScriptsTest {
         return pub;
     }
 
+    static final String SBOM = "{\"bomFormat\":\"CycloneDX\"}";
+
+    static String sha384(byte[] b) throws Exception {
+        StringBuilder sb = new StringBuilder();
+        for (byte x : java.security.MessageDigest.getInstance("SHA-384").digest(b)) sb.append(String.format("%02x", x & 0xff));
+        return sb.toString();
+    }
+
+    /**
+     * A jar as the build makes it when its known-vulnerability gate passed: one embedded jar (x.jar) holding {@code bundle},
+     * the SBOM and the list of embedded jars in META-INF/cresco, and the gate's marker in the manifest.
+     */
+    static Path gatedJar(Path jar, String bundle, String implVersion) throws Exception {
+        return gatedJar(jar, bundle, implVersion, SBOM);
+    }
+
+    static Path gatedJar(Path jar, String bundle, String implVersion, String sbom) throws Exception {
+        byte[] b = bundle.getBytes(StandardCharsets.UTF_8);
+        byte[] list = (sha384(b) + "  x.jar\n").getBytes(StandardCharsets.UTF_8);
+        byte[] sb = sbom.getBytes(StandardCharsets.UTF_8);
+        java.util.jar.Manifest mf = new java.util.jar.Manifest();
+        mf.getMainAttributes().putValue("Manifest-Version", "1.0");
+        mf.getMainAttributes().putValue("Cresco-Gate", "passed sha384:" + sha384(sb));
+        mf.getMainAttributes().putValue("Cresco-Gate-Files", "sha384:" + sha384(list));
+        if (implVersion != null) mf.getMainAttributes().putValue("Implementation-Version", implVersion);
+        Files.createDirectories(jar.toAbsolutePath().getParent());
+        try (java.io.OutputStream o = Files.newOutputStream(jar); java.util.jar.JarOutputStream j = new java.util.jar.JarOutputStream(o, mf)) {
+            for (Object[] e : new Object[][]{{"x.jar", b}, {"META-INF/cresco/sbom.cdx.json", sb}, {"META-INF/cresco/embedded.sha384", list}}) {
+                j.putNextEntry(new java.util.jar.JarEntry((String) e[0]));
+                j.write((byte[]) e[1]);
+                j.closeEntry();
+            }
+        }
+        return jar;
+    }
+
+    /** A copy of {@code jar} with one entry's content replaced (the manifest and every other entry kept). */
+    static void replaceEntry(Path jar, String name, String content) throws Exception {
+        Path tmp = jar.resolveSibling(jar.getFileName() + ".tmp");
+        try (java.util.zip.ZipFile in = new java.util.zip.ZipFile(jar.toFile());
+             java.util.zip.ZipOutputStream out = new java.util.zip.ZipOutputStream(Files.newOutputStream(tmp))) {
+            for (java.util.Enumeration<? extends java.util.zip.ZipEntry> en = in.entries(); en.hasMoreElements(); ) {
+                java.util.zip.ZipEntry e = en.nextElement();
+                out.putNextEntry(new java.util.zip.ZipEntry(e.getName()));
+                out.write(e.getName().equals(name) ? content.getBytes(StandardCharsets.UTF_8) : in.getInputStream(e).readAllBytes());
+                out.closeEntry();
+            }
+        }
+        Files.move(tmp, jar, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    }
+
     static String fingerprint(Run signed) {
         return signed.out.replaceAll("(?s).*fingerprint (sha256:[0-9a-f]{64}).*", "$1");
     }
@@ -96,8 +147,8 @@ class ReleaseSigningScriptsTest {
         Path k = key(dir, "release.key", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-384");
         Path pub = pub(k);
         Path oldDir = Files.createDirectories(dir.resolve("old")), newDir = Files.createDirectories(dir.resolve("new"));
-        Path oldJar = Files.writeString(oldDir.resolve("agent-1.3-SNAPSHOT.jar"), "monday's build, with the bug");
-        Path newJar = Files.writeString(newDir.resolve("agent-1.3-SNAPSHOT.jar"), "friday's build, fixed");
+        Path oldJar = gatedJar(oldDir.resolve("agent-1.3-SNAPSHOT.jar"), "monday's build, with the bug", null);
+        Path newJar = gatedJar(newDir.resolve("agent-1.3-SNAPSHOT.jar"), "friday's build, fixed", null);
         Run so = run(SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), "--build", "1.3-SNAPSHOT.aaaaa.20261102-0900", oldJar.toString());
         assertEquals(0, so.code, so.out);
         Run sn = run(SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), "--build", "1.3-SNAPSHOT.bbbbb.20261106-1700", newJar.toString());
@@ -131,15 +182,7 @@ class ReleaseSigningScriptsTest {
     @Test
     void theJarsOwnBuildIdentityIsTheDefault(@TempDir Path dir) throws Exception {
         Path k = key(dir, "release.key", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-384");
-        java.util.jar.Manifest mf = new java.util.jar.Manifest();
-        mf.getMainAttributes().putValue("Manifest-Version", "1.0");
-        mf.getMainAttributes().putValue("Implementation-Version", "1.3-SNAPSHOT.c0ffe.20261104-1745");
-        Path jar = dir.resolve("agent-1.3-SNAPSHOT.jar");
-        try (java.io.OutputStream o = Files.newOutputStream(jar); java.util.jar.JarOutputStream j = new java.util.jar.JarOutputStream(o, mf)) {
-            j.putNextEntry(new java.util.jar.JarEntry("x.txt"));
-            j.write(1);
-            j.closeEntry();
-        }
+        Path jar = gatedJar(dir.resolve("agent-1.3-SNAPSHOT.jar"), "x", "1.3-SNAPSHOT.c0ffe.20261104-1745");
         Run s = run(SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), jar.toString());
         assertEquals(0, s.code, s.out);
         assertEquals("1.3-SNAPSHOT.c0ffe.20261104-1745", field(s.out, "build: (\\S+)"));
@@ -149,8 +192,8 @@ class ReleaseSigningScriptsTest {
     @Test
     void signThenVerifyAndEveryTamperingFails(@TempDir Path dir) throws Exception {
         Path k = key(dir, "release.key", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-384");
-        Path jar = Files.writeString(dir.resolve("agent-1.3.jar"), "jar bytes");
-        Path sbom = Files.writeString(dir.resolve("agent-1.3.cdx.json"), "{\"bomFormat\":\"CycloneDX\"}");
+        Path jar = gatedJar(dir.resolve("agent-1.3.jar"), "jar bytes", null);
+        Path sbom = Files.writeString(dir.resolve("agent-1.3.cdx.json"), SBOM);
         Run s = run(SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), jar.toString(), sbom.toString());
         assertEquals(0, s.code, s.out);
         assertTrue(Files.readString(dir.resolve("agent-1.3.jar.sha384")).matches("[0-9a-f]{96}  agent-1\\.3\\.jar\\n"));
@@ -207,7 +250,7 @@ class ReleaseSigningScriptsTest {
         Path k = key(dir, "release.key", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-384");
         Path pub = pub(k);
         Path old = Files.createDirectories(dir.resolve("1.2"));
-        Path oldJar = Files.writeString(old.resolve("agent-1.2.jar"), "agent 1.2 bytes");
+        Path oldJar = gatedJar(old.resolve("agent-1.2.jar"), "agent 1.2 bytes", null);
         Run s = run(SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), oldJar.toString());
         assertEquals(0, s.code, s.out);
         String fp = fingerprint(s);
@@ -247,7 +290,7 @@ class ReleaseSigningScriptsTest {
         Path stat = Files.writeString(shim.resolve("stat"), "#!/bin/sh\necho '  File: \"x\"  ID: 0 Namelen: 255 Type: ext2/ext3'\nexit 0\n");
         for (Path p : new Path[]{ls, stat}) Files.setPosixFilePermissions(p, PosixFilePermissions.fromString("rwx------"));
         Path k = key(dir, "release.key", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-384");
-        Path jar = Files.writeString(dir.resolve("agent-1.3.jar"), "x");
+        Path jar = gatedJar(dir.resolve("agent-1.3.jar"), "x", null);
         String path = shim + File.pathSeparator + System.getenv("PATH");
 
         assertEquals(0, runWithPath(path, SCRIPTS.resolve("sign-release.sh").toString(), "--key", k.toString(), jar.toString()).code);
@@ -270,6 +313,70 @@ class ReleaseSigningScriptsTest {
         String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         assertTrue(p.waitFor(60, TimeUnit.SECONDS));
         return new Run(p.exitValue(), out);
+    }
+
+    /**
+     * A jar is signed only with a valid known-vulnerability gate marker that matches its own entries, and verified only
+     * with one: a jar assembled without the gate (mvn compile assembly:single) used to be signed like any other.
+     */
+    @Test
+    void aJarWithoutAValidGateMarkerIsNeitherSignedNorVerified(@TempDir Path dir) throws Exception {
+        Path k = key(dir, "release.key", "-algorithm", "EC", "-pkeyopt", "ec_paramgen_curve:P-384");
+        String sign = SCRIPTS.resolve("sign-release.sh").toString();
+
+        // no marker: a jar of the classes and embedded jars only, as mvn compile assembly:single makes it
+        Path plain = dir.resolve("plain/agent-1.3.jar");
+        Files.createDirectories(plain.getParent());
+        java.util.jar.Manifest mf = new java.util.jar.Manifest();
+        mf.getMainAttributes().putValue("Manifest-Version", "1.0");
+        mf.getMainAttributes().putValue("Main-Class", "io.cresco.main.AgentEngine");
+        try (java.util.jar.JarOutputStream j = new java.util.jar.JarOutputStream(Files.newOutputStream(plain), mf)) {
+            j.putNextEntry(new java.util.jar.JarEntry("x.jar"));
+            j.write(1);
+            j.closeEntry();
+        }
+        Run r = run(sign, "--key", k.toString(), plain.toString());
+        assertNotEquals(0, r.code);
+        assertTrue(r.out.contains("carries no known-vulnerability gate marker"), r.out);
+        assertFalse(Files.exists(dir.resolve("plain/agent-1.3.jar.sig")), "nothing was signed");
+
+        // a marker whose hashes do not match the jar: an embedded jar changed after the gate, another SBOM, another list
+        Path bundle = gatedJar(dir.resolve("b/agent-1.3.jar"), "the bundle the gate checked", null);
+        replaceEntry(bundle, "x.jar", "a bundle swapped in afterwards");
+        r = run(sign, "--key", k.toString(), bundle.toString());
+        assertNotEquals(0, r.code);
+        assertTrue(r.out.contains("its embedded x.jar is not the one the gate checked"), r.out);
+        Path sbomSwap = gatedJar(dir.resolve("s/agent-1.3.jar"), "b", null);
+        replaceEntry(sbomSwap, "META-INF/cresco/sbom.cdx.json", "{\"bomFormat\":\"CycloneDX\",\"components\":[]}");
+        assertTrue(run(sign, "--key", k.toString(), sbomSwap.toString()).out.contains("embedded SBOM (META-INF/cresco/sbom.cdx.json) is not the one"));
+        Path listSwap = gatedJar(dir.resolve("l/agent-1.3.jar"), "b", null);
+        replaceEntry(listSwap, "META-INF/cresco/embedded.sha384", "0".repeat(96) + "  x.jar\n");
+        assertTrue(run(sign, "--key", k.toString(), listSwap.toString()).out.contains("embedded.sha384 is not the list"));
+
+        // an SBOM signed with the jar must be the one its gate passed
+        Path good = gatedJar(dir.resolve("g/agent-1.3.jar"), "b", null);
+        Path otherSbom = Files.writeString(dir.resolve("g/agent-1.3.cdx.json"), "{\"bomFormat\":\"CycloneDX\",\"x\":2}");
+        r = run(sign, "--key", k.toString(), good.toString(), otherSbom.toString());
+        assertNotEquals(0, r.code);
+        assertTrue(r.out.contains("agent-1.3.cdx.json is not the SBOM the jar's known-vulnerability gate passed"), r.out);
+        Files.writeString(otherSbom, SBOM);
+        Run ok = run(sign, "--key", k.toString(), good.toString(), otherSbom.toString());
+        assertEquals(0, ok.code, ok.out);
+        String fp = fingerprint(ok);
+        Path pub = pub(k);
+        assertEquals(0, verify(pub, fp, good.toString(), otherSbom.toString()).code);
+
+        // verify checks it too: a jar without a marker, signed by hand (as an older sign-release.sh would have), fails
+        String manifest = "cresco-release-manifest 1\nname agent\nversion 1.3\nbuild b1\nsigning-key " + fp + "\ncreated 2026-11-04T00:00:00Z\n"
+                + "sha384 " + sha384(Files.readAllBytes(plain)) + " agent-1.3.jar\n";
+        Path m = Files.writeString(dir.resolve("plain/agent-1.3.jar.manifest"), manifest);
+        Process p = new ProcessBuilder("openssl", "dgst", "-sha384", "-sign", k.toString(), "-out", dir.resolve("plain/agent-1.3.jar.sig").toString(),
+                m.toString()).redirectErrorStream(true).start();
+        p.getInputStream().readAllBytes();
+        assertEquals(0, p.waitFor());
+        Run v = verify(pub, fp, "--build", "b1", plain.toString());
+        assertNotEquals(0, v.code, v.out);
+        assertTrue(v.out.contains("FAIL agent-1.3.jar: it carries no known-vulnerability gate marker"), v.out);
     }
 
     @Test

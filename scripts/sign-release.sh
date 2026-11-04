@@ -29,11 +29,60 @@
 # --passin passes openssl's passphrase source for an encrypted key (e.g. env:RELEASE_KEY_PASS or file:/path); without
 # it openssl asks on the terminal.
 #
-# Needs bash 3.2+, openssl 1.1.1+ (or LibreSSL) and POSIX ls/awk: macOS, BSD and GNU/Linux (the DGX) alike. A release
-# does not need GitHub Actions.
+# A jar is signed only when it carries a valid known-vulnerability gate marker (written by the build's
+# KnownVulnerabilityGate when it passed): the manifest's Cresco-Gate (passed sha384:<SBOM>) and Cresco-Gate-Files, the
+# embedded SBOM META-INF/cresco/sbom.cdx.json and META-INF/cresco/embedded.sha384, every hash matching the jar's own
+# entries; and a .cdx.json signed with it must be that SBOM. So a jar assembled without the gate (mvn compile
+# assembly:single, -Dmaven.antrun.skip=true with an older pom) is refused.
+#
+# Needs bash 3.2+, openssl 1.1.1+ (or LibreSSL), unzip and POSIX ls/awk: macOS, BSD and GNU/Linux (the DGX) alike. A
+# release does not need GitHub Actions.
 set -euo pipefail
 
 die() { echo "sign-release: $*" >&2; exit 1; }
+
+# gate_check <jar> <work dir>: prints "OK <sha384 of the SBOM the gate passed>" when the jar carries a valid
+# known-vulnerability gate marker, "OK -" when the file is not a zip archive (not a jar at all), else why not. The marker (written by KnownVulnerabilityGate only when it passed): the
+# manifest's Cresco-Gate (passed sha384:<SBOM>) and Cresco-Gate-Files (sha384:<list>), the embedded SBOM
+# META-INF/cresco/sbom.cdx.json and the list META-INF/cresco/embedded.sha384 of every embedded jar's SHA-384. Every
+# hash is checked against the jar's own entries. Uses unzip and openssl only, never code from the jar.
+gate_check() {
+    local jar="$1" tmp="$2" mf marker files sbom list line sum entry actual n=0
+    # a file that is not a zip archive is not a jar anything can run: it is signed as data, like any other file
+    if [ "$(LC_ALL=C head -c 2 "$jar" 2>/dev/null)" != "PK" ]; then echo "OK -"; return 0; fi
+    local re_gate='^passed sha384:([0-9a-f]{96})$' re_files='^sha384:([0-9a-f]{96})$' re_sum='^[0-9a-f]{96}$'
+    local re_name='^[A-Za-z0-9][A-Za-z0-9._+-]*$'
+    command -v unzip >/dev/null || { echo "unzip is not installed, so its known-vulnerability gate marker cannot be checked"; return 0; }
+    mf="$( { unzip -p "$jar" META-INF/MANIFEST.MF 2>/dev/null || true; } | tr -d '\r' \
+        | awk 'substr($0, 1, 1) == " " { cur = cur substr($0, 2); next } { if (NR > 1) print cur; cur = $0 } END { print cur }')"
+    marker="$(printf '%s\n' "$mf" | sed -n 's/^Cresco-Gate: //p' | head -1)"
+    files="$(printf '%s\n' "$mf" | sed -n 's/^Cresco-Gate-Files: //p' | head -1)"
+    if [[ ! "$marker" =~ $re_gate ]]; then
+        echo "it carries no known-vulnerability gate marker (Cresco-Gate in its manifest): build it with mvn package, whose known-vulnerability gate writes it; a jar assembled without the gate is not a release"
+        return 0
+    fi
+    sbom="${BASH_REMATCH[1]}"
+    [[ "$files" =~ $re_files ]] || { echo "its manifest has Cresco-Gate but no valid Cresco-Gate-Files"; return 0; }
+    list="${BASH_REMATCH[1]}"
+    actual="$( { unzip -p "$jar" META-INF/cresco/sbom.cdx.json 2>/dev/null || true; } | openssl dgst -sha384 -r | cut -d' ' -f1)"
+    [ "$actual" = "$sbom" ] || { echo "its embedded SBOM (META-INF/cresco/sbom.cdx.json) is not the one its gate marker names"; return 0; }
+    { unzip -p "$jar" META-INF/cresco/embedded.sha384 2>/dev/null || true; } > "$tmp/embedded.sha384"
+    actual="$(openssl dgst -sha384 -r "$tmp/embedded.sha384" | cut -d' ' -f1)"
+    [ "$actual" = "$list" ] || { echo "its META-INF/cresco/embedded.sha384 is not the list its gate marker names"; return 0; }
+    while IFS= read -r line || [ -n "$line" ]; do
+        [ -n "$line" ] || continue
+        sum="${line%%  *}"
+        entry="${line#*  }"
+        if [[ ! "$sum" =~ $re_sum ]] || [[ ! "$entry" =~ $re_name ]]; then
+            echo "its META-INF/cresco/embedded.sha384 has a malformed line"; return 0
+        fi
+        actual="$( { unzip -p "$jar" "$entry" 2>/dev/null || true; } | openssl dgst -sha384 -r | cut -d' ' -f1)"
+        [ "$actual" = "$sum" ] || { echo "its embedded $entry is not the one the gate checked (SHA-384 $actual, gated $sum)"; return 0; }
+        n=$((n + 1))
+    done < "$tmp/embedded.sha384"
+    [ "$n" -gt 0 ] || { echo "its gate marker lists no embedded jar"; return 0; }
+    echo "OK $sbom"
+}
 
 KEY="" PASSIN="" OUT="" NAME="" VERSION="" BUILD=""
 while [ $# -gt 0 ]; do
@@ -44,7 +93,7 @@ while [ $# -gt 0 ]; do
         --name) NAME="${2:-}"; shift 2 ;;
         --version) VERSION="${2:-}"; shift 2 ;;
         --build) BUILD="${2:-}"; shift 2 ;;
-        -h|--help) sed -n '2,38p' "$0"; exit 0 ;;
+        -h|--help) sed -n '2,44p' "$0"; exit 0 ;;
         --) shift; break ;;
         -*) die "unknown option $1" ;;
         *) break ;;
@@ -118,6 +167,23 @@ for f in "$@"; do
     fi
 done
 [ -n "$NAME" ] && [ -n "$VERSION" ] || die "cannot tell the release name and version from the file names; give --name and --version"
+
+# every jar: a valid known-vulnerability gate marker; every SBOM signed with a jar: the one its gate passed
+gated=" "
+for f in "$@"; do
+    case "$f" in *.jar)
+        r="$(gate_check "$f" "$work")"
+        case "$r" in "OK -") ;; "OK "*) gated="$gated${r#OK } " ;; *) die "$(basename "$f"): $r" ;; esac ;;
+    esac
+done
+if [ "$gated" != " " ]; then
+    for f in "$@"; do
+        case "$f" in *.cdx.json)
+            s="$(openssl dgst -sha384 -r "$f" | cut -d' ' -f1)"
+            case "$gated" in *" $s "*) ;; *) die "$(basename "$f") is not the SBOM the jar's known-vulnerability gate passed (META-INF/cresco/sbom.cdx.json)" ;; esac ;;
+        esac
+    done
+fi
 [[ "$NAME" =~ $safe ]] && [[ "$VERSION" =~ $safe ]] || die "the release name and version may use letters, digits and ._+- only"
 
 created="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
