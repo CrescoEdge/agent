@@ -70,11 +70,12 @@ assembly; it can pull published snapshots, or you can stage locally-built bundle
 ## Run
 
 ```bash
+# secrets from the environment or owner-only files, not -D (every local user can read -D values with ps)
+export CRESCO_discovery_secret_global=... CRESCO_discovery_secret_region=... CRESCO_discovery_secret_agent=...
+export CRESCO_cresco_service_key=...
 java -Djava.net.preferIPv4Stack=true \
      -Dregionname=global-region -Dagentname=global-controller -Dis_global=true \
-     -Denable_wsapi=true -Denable_console=true \
-     -Ddiscovery_secret_global=sec -Ddiscovery_secret_region=sec -Ddiscovery_secret_agent=sec \
-     -Dcresco_service_key=mykey \
+     -Denable_wsapi=true \
      -jar agent-1.3-SNAPSHOT.jar
 ```
 
@@ -85,6 +86,26 @@ Configuration is via `-D` system properties, `CRESCO_*` environment variables, o
 `enable_wsapi`/`enable_console`/`enable_dashboard`, `port`. Runtime state is written to
 `cresco-data/` (Felix cache, Derby DB, ActiveMQ data, logs).
 
+### Felix WebConsole
+
+`enable_console=true` starts the Felix WebConsole (`/system/console`) only when it can be secured; otherwise the agent
+logs `WebConsole console NOT started: <why>` at SEVERE and runs without it:
+
+- **Credentials are required**: `console_username` and `console_password_file` (an owner-only file: mode 0600 or
+  0400, owned by the agent's user, in a directory no one else can write) or `console_password`. The password needs at
+  least 12 characters and may not be a well-known default (the console's built-in `admin`/`admin` is never used) or
+  the user name. The console receives only a salted, iterated SHA-384 hash of it.
+- **Loopback by default**: it binds `console_host` (default `127.0.0.1`) on `console_port` (default `port`, else
+  8080). Reach it remotely through an SSH tunnel, or:
+- **HTTPS off loopback**: with `console_keystore` (PKCS12) and `console_keystore_password_file` (or
+  `console_keystore_password`) it serves HTTPS only (TLS 1.3/1.2) on `console_https_port` (default 8443). Binding a
+  non-loopback `console_host` without a keystore is refused, since the password would cross the network in clear.
+
+```bash
+umask 077; printf '%s' 'a-long-console-password' > console.pw
+java -Denable_console=true -Dconsole_username=ops -Dconsole_password_file=console.pw ... -jar agent-1.3-SNAPSHOT.jar
+```
+
 If an embedded bundle cannot be installed or started (for example a `controller.jar` that is not
 an OSGi bundle), the agent logs one `FATAL:` line naming the jar and exits with status 1 instead
 of hanging. As a backstop, if the controller bundle starts but has not registered its
@@ -94,7 +115,8 @@ exits the same way.
 ## Clients
 
 External programs drive Cresco through the [wsapi](https://github.com/CrescoEdge/wsapi) WebSocket plugin
-(`wss://host:8282`, authenticated with the `cresco_service_key` header):
+(`wss://host:8282`; the clients verify its certificate, pinned from the `ws.fingerprint` file wsapi writes in its plugin
+data directory, and authenticate with a per-user credential or the `cresco_service_key`; see the wsapi README):
 
 - **Java** — [clientlib](https://github.com/CrescoEdge/clientlib)
 - **Python** — [pycrescolib](https://github.com/CrescoEdge/pycrescolib)

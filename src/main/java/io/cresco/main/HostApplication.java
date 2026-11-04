@@ -200,7 +200,16 @@ public class HostApplication {
                 }
             });
 
-            boolean enableConsole = agentConfig.getBooleanParam("enable_console",Boolean.FALSE);
+            // The Felix WebConsole starts only when it can be secured: configured credentials (never the
+            // console's built-in admin/admin), loopback by default, HTTPS off loopback (ConsoleSettings).
+            ConsoleSettings.Decision console = ConsoleSettings.resolve(agentConfig::getStringParam, httpPort);
+            if (console.refusal != null) {
+                LOG.severe("WebConsole " + console.summary);
+            } else if (console.enabled) {
+                LOG.info("WebConsole " + console.summary);
+            }
+            configMap.putAll(console.frameworkProperties);
+            boolean enableConsole = console.enabled;
 
             // Create the framework via the standard OSGi launch API (org.osgi.framework.launch)
             // rather than instantiating the Felix implementation class directly. The FrameworkFactory
