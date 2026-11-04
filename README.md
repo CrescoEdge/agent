@@ -91,9 +91,12 @@ bundle's other `pom.properties` account for their own artifact's packages only, 
 
 Feed it to a vulnerability scanner (`grype sbom:target/agent-1.3-SNAPSHOT.cdx.json`, Dependency-Track, ...). The build
 itself refuses known-vulnerable components: `KnownVulnerabilityGate` is a build step in the package phase, right after
-the SBOM (not a unit test, so `-DskipTests` and `-Dmaven.test.skip=true` do not skip it). It checks every component of
-the SBOM (the agent's Maven dependencies, every embedded jar, the jars nested in them, the libraries they inline or
-declare) and fails the build when:
+the SBOM. It is not a unit test, so `-DskipTests` and `-Dmaven.test.skip=true` do not skip it, and the SBOM and gate
+executions set `<skip>false</skip>` literally (a parameter set in the POM is not read from its `-D` property), so
+`-Dmaven.antrun.skip=true` does not skip them either; it used to skip both, and the build passed with an unwaived
+known-vulnerable component. (The embedded-bundle check is skipped only by its own `-Dcresco.skipBundleCheck=true`.) It
+checks every component of the SBOM (the agent's Maven dependencies, every embedded jar, the jars nested in them, the
+libraries they inline or declare) and fails the build when:
 
 - a component is on the offline known-vulnerable list, `sbom/known-vulnerable-components.txt` (from OSV; extend it
   when OSV reports more), and no waiver in `sbom/waivers.txt` covers it. A waiver names the coordinates and version, the

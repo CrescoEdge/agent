@@ -127,6 +127,8 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
+                            <!-- set in the POM, so -Dmaven.antrun.skip=true does not skip it; only the documented
+                                 -Dcresco.skipBundleCheck=true does (testing only) -->
                             <skip>${cresco.skipBundleCheck}</skip>
                             <target>
                                 <java classname="io.cresco.main.EmbeddedBundleCheck"
@@ -151,6 +153,9 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
+                            <!-- literally false: a parameter set in the POM is not read from the maven.antrun.skip
+                                 property, so -Dmaven.antrun.skip=true cannot skip the SBOM (it used to) -->
+                            <skip>false</skip>
                             <target>
                                 <java classname="io.cresco.main.EmbeddedSbom"
                                       classpath="${project.build.outputDirectory}"
@@ -167,9 +172,12 @@
                         </configuration>
                     </execution>
                     <!-- The known-vulnerable-component gate: a build step, not a unit test, so -DskipTests and
-                         -Dmaven.test.skip=true do not skip it. It reads the SBOM just written and fails the build on a
-                         known-vulnerable component without a valid (dated, reviewed, at most 30-day) waiver, or a
-                         component of unknown version not on the reviewed allowlist (sbom/, KnownVulnerabilityGate). -->
+                         -Dmaven.test.skip=true do not skip it, and its skip is literally false, so -Dmaven.antrun.skip=true
+                         does not either (it used to skip the SBOM and the gate). It reads the SBOM just written and fails
+                         the build on a known-vulnerable component without a valid (dated, reviewed, at most 30-day)
+                         waiver, or a component of unknown version without a valid (likewise dated, reviewed, expiring)
+                         allowance (sbom/, KnownVulnerabilityGate). Changes to sbom/, the gate and this file need the
+                         owner's review (CODEOWNERS). -->
                     <execution>
                         <id>known-vulnerability-gate</id>
                         <phase>package</phase>
@@ -177,6 +185,7 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
+                            <skip>false</skip>
                             <target>
                                 <java classname="io.cresco.main.KnownVulnerabilityGate"
                                       classpath="${project.build.outputDirectory}"
