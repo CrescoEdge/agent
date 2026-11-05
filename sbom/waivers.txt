@@ -4,6 +4,3 @@
 # (CODEOWNERS; enforced where branch protection requires code-owner reviews).
 #
 #   group:artifact@version   embedded jar   since=YYYY-MM-DD   until=YYYY-MM-DD (<= since + 30)   reviewer=<who>   reason
-com.google.guava:guava@33.6.0-jre          library.jar  since=2026-11-04  until=2026-12-04  reviewer=coordinator-review-api-r2  the embedded library.jar is stale; the coordinator's review decided it is replaced at the final re-embed (guava 33.7.2+)
-c3p0:c3p0@0.9.1.1                          library.jar  since=2026-11-04  until=2026-12-04  reviewer=coordinator-review-api-r2  the embedded library.jar is stale (the hardening library removed c3p0); replaced at the final re-embed
-org.apache.logging.log4j:log4j-core@2.24.3 logger.jar   since=2026-11-04  until=2026-12-04  reviewer=coordinator-review-api-r2  the embedded logger.jar is stale (log4j-core 2.25.4+ needed); replaced at the final re-embed
