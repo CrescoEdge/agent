@@ -38,9 +38,12 @@ import java.util.jar.Manifest;
  * writes the SBOM like any other; when it cannot, the build fails with the reason. Usage:
  * <pre>
  *   EmbeddedSbom --create &lt;bom.json&gt; &lt;dir-with-embedded-jars&gt; &lt;group:artifact:version&gt; &lt;pom.xml&gt;
- *                &lt;local repository&gt; &lt;runtime classpath&gt;      write a new BOM
+ *                &lt;local repository&gt; &lt;runtime classpath&gt; [&lt;reference jars&gt;]      write a new BOM
  *   EmbeddedSbom &lt;bom.json&gt; &lt;dir-with-embedded-jars&gt;               add the embedded jars to an existing BOM
  * </pre>
+ * The reference jars (a directory in Maven repository layout, which the build fills with maven-dependency-plugin) name
+ * the libraries a bundle inlines without metadata by content ({@link InlinedLibraries.Reference}); given, the directory
+ * must exist.
  */
 public final class EmbeddedSbom {
 
@@ -49,8 +52,13 @@ public final class EmbeddedSbom {
     public static void main(String[] args) {
         Path bom = null;
         try {
-            if (args.length == 7 && "--create".equals(args[0])) {
+            if ((args.length == 7 || args.length == 8) && "--create".equals(args[0])) {
                 bom = Paths.get(args[1]);
+                InlinedLibraries.Reference ref = InlinedLibraries.Reference.NONE;
+                if (args.length == 8) {
+                    if (!Files.isDirectory(Paths.get(args[7]))) throw new IOException("the reference jars directory " + args[7] + " does not exist");
+                    ref = InlinedLibraries.Reference.load(Paths.get(args[7]));
+                }
                 List<Path> classpath = new ArrayList<>();
                 for (String e : args[6].split(java.util.regex.Pattern.quote(File.pathSeparator))) {
                     if (!e.isBlank()) classpath.add(Paths.get(e));
@@ -59,7 +67,7 @@ public final class EmbeddedSbom {
                 int maven = ((List<?>) created.get("components")).size();
                 Files.createDirectories(bom.toAbsolutePath().getParent());
                 write(bom, created);
-                int embedded = complete(bom, new File(args[2]));
+                int embedded = complete(bom, new File(args[2]), ref);
                 System.out.println("EmbeddedSbom: wrote " + bom + " (CycloneDX 1.6): " + maven + " Maven dependencies, "
                         + embedded + " embedded jars" + summary(bom));
             } else if (args.length == 2) {
@@ -68,7 +76,7 @@ public final class EmbeddedSbom {
                 System.out.println("EmbeddedSbom: added " + n + " embedded jar(s) to " + bom + summary(bom));
             } else {
                 System.err.println("usage: EmbeddedSbom --create <bom.json> <dir-with-embedded-jars> <group:artifact:version> "
-                        + "<pom.xml> <local repository> <runtime classpath>\n"
+                        + "<pom.xml> <local repository> <runtime classpath> [<reference jars>]\n"
                         + "       EmbeddedSbom <bom.json> <dir-with-embedded-jars>");
                 System.exit(2);
             }
@@ -83,7 +91,7 @@ public final class EmbeddedSbom {
     @SuppressWarnings("unchecked")
     private static String summary(Path bomFile) throws IOException {
         Map<String, Object> bom = (Map<String, Object>) Json.parse(new String(Files.readAllBytes(bomFile), StandardCharsets.UTF_8));
-        int nested = 0, inlined = 0;
+        int nested = 0, inlined = 0, byContent = 0;
         List<String> unidentified = new ArrayList<>();
         for (Object o : (List<Object>) bom.getOrDefault("components", List.of())) {
             Object sub = ((Map<String, Object>) o).get("components");
@@ -96,6 +104,8 @@ public final class EmbeddedSbom {
                     continue;
                 }
                 inlined++;
+                String vs = property(c, "cresco:version-source");
+                if (vs != null && vs.startsWith("content:")) byContent++;
                 if ("false".equals(property(c, "cresco:identified"))) {
                     unidentified.add(root + " in " + property(c, "cresco:embedded-file"));
                 }
@@ -105,7 +115,8 @@ public final class EmbeddedSbom {
             System.out.println("EmbeddedSbom: WARNING inlined classes of an unidentified library: " + u
                     + " (listed by package; name it in io.cresco.main.InlinedLibraries.KNOWN)");
         }
-        return ", " + nested + " nested libraries, " + inlined + " inlined libraries (" + unidentified.size() + " unidentified)";
+        return ", " + nested + " nested libraries, " + inlined + " inlined libraries (" + byContent + " versioned by content, "
+                + unidentified.size() + " unidentified)";
     }
 
     @SuppressWarnings("unchecked")
@@ -126,8 +137,13 @@ public final class EmbeddedSbom {
     }
 
     /** Add the embedded jars in {@code dir} to the BOM file; returns how many were added. */
-    @SuppressWarnings("unchecked")
     static int complete(Path bomFile, File dir) throws IOException {
+        return complete(bomFile, dir, InlinedLibraries.Reference.NONE);
+    }
+
+    /** As {@link #complete(Path, File)}, naming inlined libraries by content against {@code ref}. */
+    @SuppressWarnings("unchecked")
+    static int complete(Path bomFile, File dir, InlinedLibraries.Reference ref) throws IOException {
         Object parsed = Json.parse(new String(Files.readAllBytes(bomFile), StandardCharsets.UTF_8));
         if (!(parsed instanceof Map)) throw new IOException(bomFile + " is not a CycloneDX JSON object");
         Map<String, Object> bom = (Map<String, Object>) parsed;
@@ -138,11 +154,11 @@ public final class EmbeddedSbom {
         Arrays.sort(jars);
         List<String> refs = new ArrayList<>();
         for (File jar : jars) {
-            Map<String, Object> c = component(jar);
-            String ref = (String) c.get("bom-ref");
-            components.removeIf(o -> o instanceof Map && ref.equals(((Map<String, Object>) o).get("bom-ref")));
+            Map<String, Object> c = component(jar, ref);
+            String bomRef = (String) c.get("bom-ref");
+            components.removeIf(o -> o instanceof Map && bomRef.equals(((Map<String, Object>) o).get("bom-ref")));
             components.add(c);
-            refs.add(ref);
+            refs.add(bomRef);
         }
         String root = null;
         Object meta = bom.get("metadata");
@@ -169,6 +185,11 @@ public final class EmbeddedSbom {
 
     /** The component for one embedded jar. */
     static Map<String, Object> component(File jar) throws IOException {
+        return component(jar, InlinedLibraries.Reference.NONE);
+    }
+
+    /** The component for one embedded jar, its inlined libraries named by content against {@code ref} where they can be. */
+    static Map<String, Object> component(File jar, InlinedLibraries.Reference ref) throws IOException {
         byte[] bytes = Files.readAllBytes(jar.toPath());
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("type", "library");
@@ -178,6 +199,7 @@ public final class EmbeddedSbom {
         Properties own = null;
         InlinedLibraries.Context ctx = new InlinedLibraries.Context();
         Map<String, Integer> classPackages = new LinkedHashMap<>();
+        Map<String, String> classSha = ref == null || ref.isEmpty() ? null : new LinkedHashMap<>();
         try (JarFile jf = new JarFile(jar, false)) {
             Manifest mf = jf.getManifest();
             if (mf != null) {
@@ -195,6 +217,11 @@ public final class EmbeddedSbom {
                 String pkg = InlinedLibraries.classPackage(n);
                 if (pkg != null) {
                     classPackages.merge(pkg, 1, Integer::sum);
+                    if (classSha != null) {
+                        try (InputStream in = jf.getInputStream(e)) {
+                            classSha.put(n, InlinedLibraries.sha256Hex(in.readAllBytes()));
+                        }
+                    }
                 } else if (n.equals("META-INF/DEPENDENCIES")) {
                     try (InputStream in = jf.getInputStream(e)) {
                         InlinedLibraries.readDependencies(ctx, new String(in.readNBytes(1 << 20), StandardCharsets.UTF_8));
@@ -226,7 +253,8 @@ public final class EmbeddedSbom {
                     nested.add(maven(jar.getName(), p, null));
                 }
             }
-            for (InlinedLibraries.Found f : InlinedLibraries.find(classPackages, ctx, path -> entryBytes(jf, path))) {
+            List<InlinedLibraries.Found> found = InlinedLibraries.find(classPackages, ctx, path -> entryBytes(jf, path));
+            for (InlinedLibraries.Found f : InlinedLibraries.identifyByContent(found, classSha, ref, ctx)) {
                 nested.add(inlined(jar.getName(), f));
             }
         }
@@ -271,7 +299,8 @@ public final class EmbeddedSbom {
         if (known) c.put("group", m.group);
         c.put("name", known ? m.artifact : f.rootName());
         c.put("version", f.version);
-        c.put("description", "Classes inlined in " + outer + " without Maven metadata, " + (known
+        c.put("description", "Classes inlined in " + outer + " without Maven metadata, " + (f.versionSource.startsWith("content:")
+                ? "identified by content: byte-identical to the Maven artifact's" : known
                 ? "identified by their packages" : !f.declared.isEmpty()
                 ? "listed by their packages, with the artifacts " + outer + " declares under them"
                 : "not identified: listed by their packages"));

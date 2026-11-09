@@ -279,6 +279,162 @@ final class InlinedLibraries {
         }
     }
 
+    /**
+     * Reference jars, in Maven repository layout ({@code <group path>/<artifact>/<version>/<artifact>-<version>.jar}), whose
+     * classes identify inlined ones by content: the agent build resolves them (pom.xml, {@code sbom-reference}) from the
+     * Maven repository like any dependency, so their coordinates are Maven's, and a class inlined in a bundle that is
+     * byte-identical to one of theirs, at the same path, is that artifact's class at that version. That names the version
+     * of libraries a bundle inlines without any metadata (OSHI's oshi-common in executor and sysinfo, LatencyUtils in
+     * library), instead of "unknown".
+     */
+    static final class Reference {
+
+        static final class Artifact {
+            final String group, artifact, version, file, sha256;
+
+            Artifact(String group, String artifact, String version, String file, String sha256) {
+                this.group = group;
+                this.artifact = artifact;
+                this.version = version;
+                this.file = file;
+                this.sha256 = sha256;
+            }
+
+            String ga() { return group + ":" + artifact; }
+
+            String gav() { return ga() + ":" + version; }
+        }
+
+        /** Class entry path to the class's SHA-256 to the reference artifacts that hold exactly that class there. */
+        final Map<String, Map<String, List<Artifact>>> classes = new HashMap<>();
+        final List<Artifact> artifacts = new ArrayList<>();
+
+        static final Reference NONE = new Reference();
+
+        /** The reference jars under {@code dir} (Maven repository layout); a missing directory is no reference. */
+        static Reference load(java.nio.file.Path dir) throws java.io.IOException {
+            Reference r = new Reference();
+            if (dir == null || !java.nio.file.Files.isDirectory(dir)) return r;
+            List<java.nio.file.Path> jars;
+            try (java.util.stream.Stream<java.nio.file.Path> s = java.nio.file.Files.walk(dir)) {
+                jars = s.filter(p -> p.getFileName().toString().endsWith(".jar")).sorted().collect(java.util.stream.Collectors.toList());
+            }
+            for (java.nio.file.Path jar : jars) {
+                java.nio.file.Path rel = dir.relativize(jar);
+                int n = rel.getNameCount();
+                if (n < 4) throw new java.io.IOException("reference jar " + jar + " is not in Maven repository layout");
+                String version = rel.getName(n - 2).toString(), artifact = rel.getName(n - 3).toString();
+                if (!rel.getFileName().toString().equals(artifact + "-" + version + ".jar")) {
+                    throw new java.io.IOException("reference jar " + jar + " is not " + artifact + "-" + version + ".jar");
+                }
+                StringBuilder g = new StringBuilder();
+                for (int i = 0; i < n - 3; i++) g.append(i > 0 ? "." : "").append(rel.getName(i));
+                byte[] bytes = java.nio.file.Files.readAllBytes(jar);
+                Artifact a = new Artifact(g.toString(), artifact, version, rel.getFileName().toString(), sha256Hex(bytes));
+                r.artifacts.add(a);
+                try (java.util.jar.JarInputStream in = new java.util.jar.JarInputStream(new ByteArrayInputStream(bytes))) {
+                    java.util.jar.JarEntry e;
+                    while ((e = in.getNextJarEntry()) != null) {
+                        if (classPackage(e.getName()) == null) continue;
+                        r.classes.computeIfAbsent(e.getName(), k -> new HashMap<>())
+                                .computeIfAbsent(sha256Hex(in.readAllBytes()), k -> new ArrayList<>()).add(a);
+                    }
+                }
+            }
+            return r;
+        }
+
+        boolean isEmpty() { return artifacts.isEmpty(); }
+    }
+
+    static String sha256Hex(byte[] b) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(b));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    /**
+     * Libraries identified by content: each found library whose every class is byte-identical to a reference artifact's
+     * class at the same path becomes that artifact at that version -- one library per reference artifact its classes come
+     * from (OSHI's packages in executor are oshi-common's). A version the bundle's metadata gives that differs is kept as a
+     * disagreement. A library with any class no reference artifact holds is left as it was found.
+     *
+     * @param classSha every class entry of the jar (path) to its SHA-256
+     */
+    static List<Found> identifyByContent(List<Found> found, Map<String, String> classSha, Reference ref, Context ctx) {
+        if (ref == null || ref.isEmpty() || classSha == null) return found;
+        Map<String, List<String>> entriesByPackage = new HashMap<>();
+        for (String entry : classSha.keySet()) {
+            String pkg = classPackage(entry);
+            if (pkg != null) entriesByPackage.computeIfAbsent(pkg.replace('/', '.'), k -> new ArrayList<>()).add(entry);
+        }
+        List<Found> out = new ArrayList<>();
+        for (Found f : found) {
+            List<String> entries = new ArrayList<>();
+            for (String pkg : f.packages.keySet()) entries.addAll(entriesByPackage.getOrDefault(pkg, List.of()));
+            Map<String, List<Reference.Artifact>> holders = new LinkedHashMap<>();
+            boolean all = !entries.isEmpty();
+            for (String e : entries) {
+                List<Reference.Artifact> h = ref.classes.getOrDefault(e, Map.of()).get(classSha.get(e));
+                if (h == null || h.isEmpty()) {
+                    all = false;
+                    break;
+                }
+                holders.put(e, h);
+            }
+            if (!all) {
+                out.add(f);
+                continue;
+            }
+            // the fewest artifacts that hold every class: the one holding most of the classes left, until none is left
+            Map<Reference.Artifact, List<String>> assigned = new LinkedHashMap<>();
+            java.util.Set<String> left = new java.util.TreeSet<>(entries);
+            while (!left.isEmpty()) {
+                Map<Reference.Artifact, Integer> votes = new LinkedHashMap<>();
+                for (String e : left) for (Reference.Artifact a : holders.get(e)) votes.merge(a, 1, Integer::sum);
+                Reference.Artifact best = null;
+                for (Map.Entry<Reference.Artifact, Integer> v : votes.entrySet()) {
+                    if (best == null || v.getValue() > votes.get(best)) best = v.getKey();
+                }
+                List<String> mine = new ArrayList<>();
+                for (String e : left) if (holders.get(e).contains(best)) mine.add(e);
+                left.removeAll(mine);
+                assigned.put(best, mine);
+            }
+            for (Map.Entry<Reference.Artifact, List<String>> e : assigned.entrySet()) {
+                Reference.Artifact a = e.getKey();
+                Known k = null;
+                for (Known x : KNOWN) if (x.group.equals(a.group) && x.artifact.equals(a.artifact)) k = x;
+                if (k == null) k = new Known(a.group, a.artifact, f.root);
+                Found g = new Found(new Match(k, a.group, a.artifact, f.root));
+                for (String entry : e.getValue()) g.packages.merge(classPackage(entry).replace('/', '.'), 1, Integer::sum);
+                g.version = a.version;
+                g.versionSource = "content: every class byte-identical to " + a.gav() + " (" + a.file + ", SHA-256 " + a.sha256 + ")";
+                if (!"unknown".equals(f.versionSource) && !a.version.equals(f.version)) {
+                    g.otherVersions.add(f.version + " (" + f.versionSource + ")");
+                }
+                g.otherVersions.addAll(f.otherVersions);
+                for (String entry : e.getValue()) {
+                    for (Reference.Artifact o : holders.get(entry)) {
+                        String also = o.version + " (also byte-identical: " + o.gav() + ")";
+                        if (o != a && o.ga().equals(a.ga()) && !g.otherVersions.contains(also)
+                                && holdsAll(holders, e.getValue(), o)) g.otherVersions.add(also);
+                    }
+                }
+                g.nestedCopy = ctx.nestedCoordinates.get(a.ga());
+                out.add(g);
+            }
+        }
+        return out;
+    }
+
+    private static boolean holdsAll(Map<String, List<Reference.Artifact>> holders, List<String> entries, Reference.Artifact a) {
+        for (String e : entries) if (!holders.get(e).contains(a)) return false;
+        return true;
+    }
+
     /** Where a package (slash form) belongs: the longest known root, else an unidentified root. */
     static Match match(String pkg) {
         Known best = null;

@@ -107,9 +107,19 @@ libraries they inline or declare) and fails the build when:
   apart, `reviewer=`, reason). An allowance expires like a waiver: one without dates (the earlier format), lasting more
   than 30 days, expired, future-dated or matching nothing any more fails the build.
 
-Today's waivers: the stale embedded library.jar (guava 33.6.0-jre, c3p0 0.9.1.1) and logger.jar (log4j-core 2.24.3),
-until 2026-12-04, replaced at the final re-embed. Allowed of unknown version, until 2026-12-04: the OSHI classes inlined
-by executor.jar and sysinfo.jar, and LatencyUtils in library.jar.
+**Inlined libraries are named by content.** A bundle that inlines a library as bare classes, with no `pom.properties`
+and no version constant, records no version for it. The build resolves reference jars from the Maven repository
+(`pom.xml`, execution `sbom-reference`, copied to `target/sbom-reference/` in repository layout, never packaged), and a
+library whose every class is byte-identical to the class at the same path in one of them is listed as that artifact at
+that version (`cresco:version-source` `content: every class byte-identical to <group:artifact:version> (<jar>,
+SHA-256 ...)`). So OSHI's platform classes that executor.jar and sysinfo.jar inline are
+`com.github.oshi:oshi-common:7.3.2` (they were listed as oshi-core of unknown version), and the classes library.jar
+inlines from micrometer's pause detection are `org.latencyutils:LatencyUtils:2.0.3`. OSV (api.osv.dev, 2026-11-08) has
+no advisory for any version of oshi-common, oshi-core or LatencyUtils. One class that differs leaves the library of
+unknown version, and the gate fails the build: when a bundle inlines another version (an OSHI or micrometer upgrade),
+add that version to `sbom-reference`.
+
+Today there is no waiver and no unknown-version allowance: both files are empty, and every component's version is known.
 
 **Who reviews an exception.** `reviewer=` is free text, so it cannot stop someone from approving their own waiver.
 `CODEOWNERS` names the owner (`@codybum`) for `sbom/**`, the gate and SBOM code, `pom.xml` (which wires the gate) and the

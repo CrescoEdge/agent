@@ -131,6 +131,78 @@ class InlinedLibrariesTest {
         assertEquals("unknown", thing.version);
     }
 
+    static void jar(java.nio.file.Path file, Map<String, byte[]> entries, String bsn) throws Exception {
+        java.nio.file.Files.createDirectories(file.getParent());
+        java.util.jar.Manifest mf = new java.util.jar.Manifest();
+        mf.getMainAttributes().put(java.util.jar.Attributes.Name.MANIFEST_VERSION, "1.0");
+        if (bsn != null) mf.getMainAttributes().putValue("Bundle-SymbolicName", bsn);
+        try (java.util.jar.JarOutputStream out = new java.util.jar.JarOutputStream(java.nio.file.Files.newOutputStream(file), mf)) {
+            for (Map.Entry<String, byte[]> e : entries.entrySet()) {
+                out.putNextEntry(new java.util.jar.JarEntry(e.getKey()));
+                out.write(e.getValue());
+                out.closeEntry();
+            }
+        }
+    }
+
+    static byte[] cls(String tag) {
+        return ("\u00ca\u00fe" + tag).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    @SuppressWarnings("unchecked")
+    static Map<String, String> props(Map<String, Object> c) {
+        Map<String, String> m = new LinkedHashMap<>();
+        for (Object o : (List<Object>) c.get("properties")) m.put(String.valueOf(((Map<String, Object>) o).get("name")), String.valueOf(((Map<String, Object>) o).get("value")));
+        return m;
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void inlinedClassesByteIdenticalToAReferenceArtifactAreThatArtifactAtThatVersion(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        java.nio.file.Path ref = dir.resolve("ref");
+        jar(ref.resolve("org/example/lib/1.2.3/lib-1.2.3.jar"), Map.of("org/example/lib/A.class", cls("A"), "org/example/lib/B.class", cls("B"),
+                "META-INF/versions/11/org/example/lib/A.class", cls("A11")), null);
+        jar(ref.resolve("org/example/lib/1.2.4/lib-1.2.4.jar"), Map.of("org/example/lib/A.class", cls("A-new"), "org/example/lib/B.class", cls("B")), null);
+        jar(ref.resolve("org/example/lib-common/1.2.3/lib-common-1.2.3.jar"), Map.of("org/example/lib/impl/C.class", cls("C")), null);
+        InlinedLibraries.Reference r = InlinedLibraries.Reference.load(ref);
+        assertEquals(3, r.artifacts.size());
+
+        // a bundle that inlines lib 1.2.3 (multi-release copy included) and lib-common: two libraries, versions by content
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        entries.put("io/cresco/thing/Main.class", cls("main"));
+        entries.put("org/example/lib/A.class", cls("A"));
+        entries.put("org/example/lib/B.class", cls("B"));
+        entries.put("META-INF/versions/11/org/example/lib/A.class", cls("A11"));
+        entries.put("org/example/lib/impl/C.class", cls("C"));
+        java.nio.file.Path bundle = dir.resolve("thing.jar");
+        jar(bundle, entries, "io.cresco.thing");
+        Map<String, Map<String, Object>> libs = new LinkedHashMap<>();
+        for (Object o : (List<Object>) EmbeddedSbom.component(bundle.toFile(), r).get("components")) {
+            Map<String, Object> c = (Map<String, Object>) o;
+            libs.put(c.get("group") + ":" + c.get("name"), c);
+        }
+        assertEquals(java.util.Set.of("org.example:lib", "org.example:lib-common"), libs.keySet());
+        assertEquals("1.2.3", libs.get("org.example:lib").get("version"), "1.2.4's A differs: not 1.2.4");
+        assertEquals("pkg:maven/org.example/lib@1.2.3", libs.get("org.example:lib").get("purl"));
+        assertEquals("3", props(libs.get("org.example:lib")).get("cresco:inlined-classes"));
+        assertTrue(props(libs.get("org.example:lib")).get("cresco:version-source").startsWith("content: every class byte-identical to org.example:lib:1.2.3 (lib-1.2.3.jar, SHA-256 "));
+        assertEquals("1.2.3", libs.get("org.example:lib-common").get("version"));
+        assertEquals("org.example.lib.impl", props(libs.get("org.example:lib-common")).get("cresco:inlined-packages"));
+
+        // without the reference, or with one class that is not the artifact's, the version stays unknown (the gate fails)
+        assertEquals("unknown", ((Map<String, Object>) ((List<Object>) EmbeddedSbom.component(bundle.toFile()).get("components")).get(0)).get("version"));
+        entries.put("org/example/lib/B.class", cls("B-patched"));
+        jar(bundle, entries, "io.cresco.thing");
+        List<Object> patched = (List<Object>) EmbeddedSbom.component(bundle.toFile(), r).get("components");
+        assertEquals(1, patched.size());
+        assertEquals("unknown", ((Map<String, Object>) patched.get(0)).get("version"), "a patched class is not the artifact's");
+
+        assertThrows(java.io.IOException.class, () -> {
+            jar(dir.resolve("bad/x/1/y-1.jar"), Map.of(), null);
+            InlinedLibraries.Reference.load(dir.resolve("bad"));
+        }, "a reference jar must be in repository layout");
+    }
+
     static Map<String, InlinedLibraries.Found> byKey(List<InlinedLibraries.Found> list) {
         Map<String, InlinedLibraries.Found> m = new LinkedHashMap<>();
         for (InlinedLibraries.Found f : list) m.put(f.match.key(), f);

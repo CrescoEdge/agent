@@ -4,7 +4,7 @@
 # expired, is dated in the future, or matches nothing any more. Renew one only after a new review, with a new date.
 # Changes here need the owner's review (CODEOWNERS; enforced where branch protection requires code-owner reviews).
 #
+# Empty: every component's version is known. Libraries a bundle inlines without metadata are named by content against
+# the reference jars the build resolves (pom.xml, sbom-reference); add the reference artifact there, not an allowance.
+#
 #   embedded jar   group:artifact (or name)   since=YYYY-MM-DD   until=YYYY-MM-DD (<= since + 30)   reviewer=<who>   reason
-executor.jar  com.github.oshi:oshi-core        since=2026-11-04  until=2026-12-04  reviewer=agent-b-hardening  OSHI classes the executor bundle inlines beside its nested oshi-core-7.3.2.jar (listed with its version); no OSHI advisory in OSV; confirm at the executor's next re-embed
-sysinfo.jar   com.github.oshi:oshi-core        since=2026-11-04  until=2026-12-04  reviewer=agent-b-hardening  OSHI classes the sysinfo bundle inlines beside its nested oshi-core-7.3.2.jar (listed with its version); no OSHI advisory in OSV; confirm at the sysinfo re-embed
-library.jar   org.latencyutils:LatencyUtils    since=2026-11-04  until=2026-12-04  reviewer=agent-b-hardening  LatencyUtils (micrometer's pause detection) inlined without a version; no advisory in OSV for any version; the library re-embed should record it

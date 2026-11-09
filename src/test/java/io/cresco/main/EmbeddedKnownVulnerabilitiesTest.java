@@ -115,11 +115,17 @@ class EmbeddedKnownVulnerabilitiesTest {
         File dir = new File(HostApplication.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         File[] jars = dir.listFiles((d, n) -> n.endsWith(".jar"));
         assertNotNull(jars);
+        // the reference jars the build resolves (pom.xml sbom-reference), as the SBOM step reads them
+        java.nio.file.Path refDir = Paths.get("target", "sbom-reference");
+        assertTrue(java.nio.file.Files.isDirectory(refDir), "the build resolves the SBOM's reference jars before the tests");
+        InlinedLibraries.Reference ref = InlinedLibraries.Reference.load(refDir);
         List<KnownVulnerabilityGate.Component> comps = new ArrayList<>();
         for (File j : jars) {
-            Map<String, Object> c = EmbeddedSbom.component(j);
+            Map<String, Object> c = EmbeddedSbom.component(j, ref);
             KnownVulnerabilityGate.walk(List.of((Object) c), null, comps);
         }
         assertEquals(List.of(), KnownVulnerabilityGate.check(comps, rules, waivers, allowed, LocalDate.now(java.time.ZoneOffset.UTC)));
+        assertEquals(List.of(), allowed, "no component of unknown version is allowed: every version is known");
+        for (KnownVulnerabilityGate.Component c : comps) assertNotEquals("unknown", c.version, c.jar + " " + c.coordinates());
     }
 }

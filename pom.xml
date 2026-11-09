@@ -111,6 +111,60 @@
                 </configuration>
             </plugin>
 
+            <!-- Reference jars for the SBOM (EmbeddedSbom, InlinedLibraries.Reference): libraries the embedded bundles
+                 inline as bare classes, with no pom.properties and no version constant, are named by content: every
+                 class byte-identical to the class at the same path in one of these Maven artifacts. Resolved from the
+                 Maven repository like any dependency (so an offline build needs them in the local repository), copied
+                 in repository layout, never packaged. When a bundle inlines another version (an OSHI or micrometer
+                 upgrade), the SBOM lists it as of unknown version and the known-vulnerability gate fails the build:
+                 add the version the bundle now inlines here (the error names the classes). Changes here need the
+                 owner's review (CODEOWNERS), as sbom/ does. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.8.1</version>
+                <executions>
+                    <execution>
+                        <id>sbom-reference</id>
+                        <!-- early, so the tests judge the embedded jars as the SBOM step will -->
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <!-- literally false: -Dmdep.skip=true does not skip what the SBOM needs -->
+                            <skip>false</skip>
+                            <!-- each in Maven repository layout (group/artifact/version/), where its coordinates are read -->
+                            <overWriteReleases>true</overWriteReleases>
+                            <artifactItems>
+                                <!-- OSHI 7.x's platform classes: executor and sysinfo inline them (Private-Package oshi.*)
+                                     beside their nested oshi-core jar -->
+                                <artifactItem>
+                                    <groupId>com.github.oshi</groupId>
+                                    <artifactId>oshi-common</artifactId>
+                                    <version>7.3.2</version>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/com/github/oshi/oshi-common/7.3.2</outputDirectory>
+                                </artifactItem>
+                                <!-- the copies of oshi-core's classes they inline as well -->
+                                <artifactItem>
+                                    <groupId>com.github.oshi</groupId>
+                                    <artifactId>oshi-core</artifactId>
+                                    <version>7.3.2</version>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/com/github/oshi/oshi-core/7.3.2</outputDirectory>
+                                </artifactItem>
+                                <!-- micrometer's pause detection: library inlines it -->
+                                <artifactItem>
+                                    <groupId>org.latencyutils</groupId>
+                                    <artifactId>LatencyUtils</artifactId>
+                                    <version>2.0.3</version>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/org/latencyutils/LatencyUtils/2.0.3</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Build guard (CrescoEdge/agent#3): every embedded jar under src/main/resources must be
                  an OSGi bundle (Bundle-SymbolicName in its manifest). A controller.jar built
                  without bundle:bundle installs as an empty legacy bundle and the agent parks
@@ -167,6 +221,9 @@
                                     <arg value="${project.basedir}/pom.xml"/>
                                     <arg value="${settings.localRepository}"/>
                                     <arg pathref="maven.runtime.classpath"/>
+                                    <!-- the reference jars (sbom-reference, below): inlined classes byte-identical to theirs
+                                         are those artifacts at those versions -->
+                                    <arg value="${project.build.directory}/sbom-reference"/>
                                 </java>
                             </target>
                         </configuration>
