@@ -111,6 +111,9 @@ def main():
     ap.add_argument("--settle", type=float, default=10.0, help="max seconds to wait for delivery")
     ap.add_argument("--rx-sleep-ms", type=float, default=0.0,
                     help="a slow receiver: sleep this long per message received (backpressure: the sender must slow, nothing may be lost)")
+    ap.add_argument("--rate-mib-s", type=float, default=0.0,
+                    help="send at this offered load (MiB/s) instead of as fast as possible: latency at a fixed load, "
+                         "not the depth of the queue a faster sender builds ahead of its reader")
     ap.add_argument("--start-at", type=float, default=0.0,
                     help="wall-clock time (time.time()) to start sending at, so several processes send together")
     args = ap.parse_args()
@@ -153,8 +156,13 @@ def main():
     if args.start_at > 0:
         time.sleep(max(0.0, args.start_at - time.time()))
 
+    interval = (size / (args.rate_mib_s * 1048576.0)) if args.rate_mib_s > 0 else 0.0
     t0 = time.perf_counter()
     for seq in range(args.messages):
+        if interval:
+            ahead = t0 + seq * interval - time.perf_counter()
+            if ahead > 0:
+                time.sleep(ahead)
         payload = HDR.pack(seq, time.perf_counter()) + filler
         if args.mode == "binary":
             tx_dp.send_binary(payload)
