@@ -142,7 +142,15 @@ public final class CryptoBoot {
     public static synchronized List<Path> install() {
         if (!modules.isEmpty()) return modules;
         if (loadable(BC_FIPS_PROVIDER)) {
-            LOG.info("crypto: Bouncy Castle FIPS is on the class path already; the agent's copies are not used");
+            // a deployment that put the jars on the class path itself: those are the modules (their exports are the
+            // system bundle's, as with the agent's own copies)
+            List<Path> found = new ArrayList<>();
+            for (String c : MODULE_CLASSES) {
+                Path p = codeSource(c);
+                if (p != null && !found.contains(p)) found.add(p);
+            }
+            modules = List.copyOf(found);
+            LOG.info("crypto: Bouncy Castle FIPS is on the class path already (" + found + "); the agent's copies are not used");
             return modules;
         }
         ClassLoader cl = CryptoBoot.class.getClassLoader();
@@ -200,6 +208,22 @@ public final class CryptoBoot {
             return Files.createTempDirectory("cresco-crypto-", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
         } catch (UnsupportedOperationException notPosix) {
             return Files.createTempDirectory("cresco-crypto-");
+        }
+    }
+
+    /** One class of each Bouncy Castle FIPS jar: bc-fips, bcpkix-fips, bcutil-fips, bctls-fips. */
+    static final List<String> MODULE_CLASSES = List.of(BC_FIPS_PROVIDER, "org.bouncycastle.cert.X509v3CertificateBuilder",
+            "org.bouncycastle.asn1.cmc.BodyPartID", BC_JSSE_PROVIDER);
+
+    /** The jar a class is loaded from (system class loader), or null. */
+    static Path codeSource(String className) {
+        try {
+            java.security.CodeSource cs = Class.forName(className, false, ClassLoader.getSystemClassLoader()).getProtectionDomain().getCodeSource();
+            if (cs == null || cs.getLocation() == null) return null;
+            Path p = Path.of(cs.getLocation().toURI());
+            return p.getFileName().toString().endsWith(".jar") ? p : null;
+        } catch (Exception | LinkageError e) {
+            return null;
         }
     }
 

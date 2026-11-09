@@ -55,6 +55,7 @@ class FipsModeTest {
         assertTrue(out.contains("approvedOnly=true"), out);
         assertTrue(out.contains("tls=SunJSSE"), out);
         assertTrue(out.contains("fipsTls=TLSv1.3"), out);
+        assertTrue(out.matches("(?s).*exports=\\d+ cert jsse\n.*"), "the system bundle exports the modules' packages (no uses:): " + out);
     }
 
     @Test

@@ -14,6 +14,9 @@ import java.security.NoSuchAlgorithmException;
 public final class FipsProbe {
     public static void main(String[] args) throws Exception {
         CryptoBoot.install();
+        String exports = CryptoBoot.systemPackages();
+        System.out.println("exports=" + exports.split(",").length + (exports.contains("org.bouncycastle.cert;version=") ? " cert" : "")
+                + (exports.contains("org.bouncycastle.jsse.provider;version=") ? " jsse" : "") + (exports.contains("uses:=") ? " uses" : ""));
         CryptoBoot.Settings s = new CryptoBoot.Settings();
         s.securityProfile = "production";
         int i = 0;
