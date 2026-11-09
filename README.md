@@ -256,7 +256,9 @@ with `--rx-host/--rx-port`). Measured 2026-11-08:
 | Apple M3 Max, FIPS: BC-FJA only (no native code for this platform) | 116 | 56 | 422 | 3570 |
 
 So on Linux x86_64 FIPS mode is faster than the JDK (ACCP-FIPS); BC-FJA alone costs 3-4x of TLS throughput there and 30x
-on Apple silicon, which is why ACCP-FIPS comes first wherever it runs.
+on Apple silicon, which is why ACCP-FIPS comes first wherever it runs. End to end on one DGX node (Xeon 8480CL, 8 cores,
+`scripts/bench/dataplane_perf.py`, 2000 x 256 KiB): a production (FIPS) mesh 299 MiB/s through one agent and 280 MiB/s
+across the broker bridge to another; a standard mesh 246 and 219 MiB/s.
 
 ### Felix WebConsole
 
