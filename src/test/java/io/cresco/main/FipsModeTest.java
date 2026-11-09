@@ -114,6 +114,25 @@ class FipsModeTest {
     }
 
     @Test
+    void moduleDirectoriesOfAgentsNoLongerRunningAreRemoved(@TempDir Path tmp) throws Exception {
+        Path dead = Files.createDirectories(tmp.resolve("cresco-crypto-999999999-1"));
+        Files.writeString(dead.resolve("bc-fips-2.1.3.jar"), "x");
+        Path legacy = Files.createDirectories(tmp.resolve("cresco-crypto-1234567890123"));
+        Path legacyInUse = Files.createDirectories(tmp.resolve("cresco-crypto-98765432101234"));
+        Files.writeString(legacyInUse.resolve("bc-fips-2.1.3.jar"), "x");
+        Path mine = Files.createDirectories(tmp.resolve("cresco-crypto-" + ProcessHandle.current().pid() + "-2"));
+        Path other = Files.createDirectories(tmp.resolve("not-cresco"));
+        CryptoBoot.removeStale(tmp);
+        assertFalse(Files.exists(dead), "a dead agent's directory and its jars are removed");
+        assertFalse(Files.exists(legacy), "an earlier build's (no pid), empty, is removed");
+        assertTrue(Files.exists(legacyInUse), "one naming no pid that holds jars may be in use: kept");
+        assertTrue(Files.exists(mine), "a live agent's is kept");
+        assertTrue(Files.exists(other));
+        assertEquals(42, CryptoBoot.pidOf("cresco-crypto-42-abc"));
+        assertEquals(-1, CryptoBoot.pidOf("cresco-crypto-x-abc"));
+    }
+
+    @Test
     void theRulesOfTheSetUp() {
         assertEquals("linux-x86_64", CryptoBoot.accpClassifier("Linux", "amd64"));
         assertEquals("linux-aarch_64", CryptoBoot.accpClassifier("Linux", "aarch64"));

@@ -173,6 +173,8 @@ public final class CryptoBoot {
         List<Path> out = new ArrayList<>();
         try {
             Path dir = privateDirectory();
+            // deleteOnExit runs in reverse order: the directory first registered is deleted last, once its jars are gone
+            dir.toFile().deleteOnExit();
             for (Map.Entry<String, String> m : listed.entrySet()) {
                 if (!forThisPlatform(m.getKey(), classifier)) continue;
                 byte[] bytes;
@@ -190,7 +192,6 @@ public final class CryptoBoot {
                 instrumentation.appendToSystemClassLoaderSearch(new JarFile(f.toFile()));
                 out.add(f);
             }
-            dir.toFile().deleteOnExit();
         } catch (Refused r) {
             throw r;
         } catch (Exception e) {
@@ -203,11 +204,60 @@ public final class CryptoBoot {
         return modules;
     }
 
+    static final String DIR_PREFIX = "cresco-crypto-";
+
+    /** A new owner-only directory {@code cresco-crypto-<pid>-<random>}, after removing those of agents no longer running. */
     private static Path privateDirectory() throws IOException {
+        String prefix = DIR_PREFIX + ProcessHandle.current().pid() + "-";
+        Path dir;
         try {
-            return Files.createTempDirectory("cresco-crypto-", PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+            dir = Files.createTempDirectory(prefix, PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
         } catch (UnsupportedOperationException notPosix) {
-            return Files.createTempDirectory("cresco-crypto-");
+            dir = Files.createTempDirectory(prefix);
+        }
+        removeStale(dir.getParent());
+        return dir;
+    }
+
+    /** The pid a module directory names ({@code cresco-crypto-<pid>-...}), or -1. */
+    static long pidOf(String dirName) {
+        if (!dirName.startsWith(DIR_PREFIX)) return -1;
+        String rest = dirName.substring(DIR_PREFIX.length());
+        int dash = rest.indexOf('-');
+        try {
+            return dash > 0 ? Long.parseLong(rest.substring(0, dash)) : -1;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /**
+     * Remove module directories this user's agents left behind (a JVM killed without running its exit hooks): those that
+     * name a process no longer alive, with their jars, and empty ones that name none (an earlier build). Never another
+     * user's, never a live agent's.
+     */
+    static void removeStale(Path tmp) {
+        if (tmp == null) return;
+        try (java.nio.file.DirectoryStream<Path> ds = Files.newDirectoryStream(tmp, DIR_PREFIX + "*")) {
+            String me = System.getProperty("user.name");
+            for (Path d : ds) {
+                try {
+                    if (!Files.isDirectory(d, java.nio.file.LinkOption.NOFOLLOW_LINKS)) continue;
+                    if (me != null && !me.equals(Files.getOwner(d, java.nio.file.LinkOption.NOFOLLOW_LINKS).getName())) continue;
+                    long pid = pidOf(d.getFileName().toString());
+                    if (pid == ProcessHandle.current().pid() || (pid > 0 && ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false))) continue;
+                    if (pid > 0) {
+                        try (java.nio.file.DirectoryStream<Path> files = Files.newDirectoryStream(d)) {
+                            for (Path f : files) Files.deleteIfExists(f);
+                        }
+                    }
+                    Files.deleteIfExists(d);              // a directory naming no pid only when empty: whose it is cannot be told
+                } catch (IOException | RuntimeException one) {
+                    // left for the next start
+                }
+            }
+        } catch (IOException | RuntimeException e) {
+            // nothing to clean
         }
     }
 
