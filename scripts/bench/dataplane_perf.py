@@ -52,6 +52,11 @@ class Receiver:
         self.first_ts = None
         self.last_ts = None
         self.latencies = []
+        self.seqs = set()
+        self.dups = 0
+        self.out_of_order = 0    # a frame with a lower number than one already received (a stream keeps its order)
+        self.max_seq = -1
+        self.sizes = {}          # payload size -> count (a frame of another size is damaged)
         self._lock = threading.Lock()
 
     def _record(self, payload: bytes):
@@ -62,10 +67,17 @@ class Receiver:
             self.last_ts = now
             self.count += 1
             self.bytes += len(payload)
+            self.sizes[len(payload)] = self.sizes.get(len(payload), 0) + 1
             if len(payload) >= HDR.size:
                 try:
-                    _seq, send_t = HDR.unpack(payload[:HDR.size])
+                    seq, send_t = HDR.unpack(payload[:HDR.size])
                     self.latencies.append(now - send_t)
+                    if seq in self.seqs:
+                        self.dups += 1
+                    elif seq < self.max_seq:
+                        self.out_of_order += 1
+                    self.max_seq = max(self.max_seq, seq)
+                    self.seqs.add(seq)
                 except struct.error:
                     pass
 
@@ -97,6 +109,10 @@ def main():
     ap.add_argument("--size", type=int, default=1024, help="payload bytes per message")
     ap.add_argument("--mode", choices=["text", "binary"], default="binary")
     ap.add_argument("--settle", type=float, default=10.0, help="max seconds to wait for delivery")
+    ap.add_argument("--rx-sleep-ms", type=float, default=0.0,
+                    help="a slow receiver: sleep this long per message received (backpressure: the sender must slow, nothing may be lost)")
+    ap.add_argument("--start-at", type=float, default=0.0,
+                    help="wall-clock time (time.time()) to start sending at, so several processes send together")
     args = ap.parse_args()
 
     ident = args.stream or ("perf-" + uuid.uuid4().hex[:8])
@@ -117,6 +133,11 @@ def main():
         return 2
 
     rx = Receiver()
+    if args.rx_sleep_ms > 0:
+        nap = args.rx_sleep_ms / 1000.0
+        text_cb, binary_cb = rx.text_cb, rx.binary_cb
+        rx.text_cb = lambda m: (time.sleep(nap), text_cb(m))
+        rx.binary_cb = lambda d: (time.sleep(nap), binary_cb(d))
     rx_dp = rx_client.get_dataplane(cfg, rx.text_cb, rx.binary_cb)
     if not rx_dp.connect():
         print("ERROR: receiver dataplane failed to activate")
@@ -129,6 +150,8 @@ def main():
 
     pad = size - HDR.size
     filler = b"\x00" * pad
+    if args.start_at > 0:
+        time.sleep(max(0.0, args.start_at - time.time()))
 
     t0 = time.perf_counter()
     for seq in range(args.messages):
@@ -170,11 +193,16 @@ def main():
 
     res = {"messages": args.messages, "size": size, "mode": args.mode, "received": rx.count, "send_s": round(send_elapsed, 3),
            "recv_mib_s": round(total_mb / recv_elapsed, 1) if rx.count else 0.0, "recv_msg_s": round(rx.count / recv_elapsed) if rx.count else 0,
-           "p50_ms": round(pct(0.50), 2), "p99_ms": round(pct(0.99), 2), "cross_node": bool(args.rx_host or args.rx_port)}
+           "p50_ms": round(pct(0.50), 2), "p99_ms": round(pct(0.99), 2), "cross_node": bool(args.rx_host or args.rx_port),
+           "recv_bytes": rx.bytes, "first_rx": rx.first_ts, "last_rx": rx.last_ts, "t0": t0,
+           "missing": args.messages - len(rx.seqs), "dups": rx.dups, "out_of_order": rx.out_of_order,
+           "bad_size": sum(n for sz, n in rx.sizes.items() if sz != size),
+           "sizes_seen": sorted(rx.sizes.items())[:6]}
     print("BENCH " + json.dumps(res))
     tx_client.close()
     rx_client.close()
-    return 0 if rx.count == args.messages else 1
+    ok = rx.count == args.messages and res["missing"] == 0 and res["dups"] == 0 and res["bad_size"] == 0 and res["out_of_order"] == 0
+    return 0 if ok else 1
 
 
 if __name__ == "__main__":
