@@ -96,6 +96,20 @@ public class HostApplication {
 
         agentConfig = new Config(fileConfigMap);
 
+        // which module serves the JVM's crypto: the JDK (standard) or the FIPS modules, approved-only (production)
+        try {
+            CryptoBoot.Settings crypto = new CryptoBoot.Settings();
+            crypto.securityProfile = agentConfig.getStringParam("security_profile");
+            crypto.fipsMode = agentConfig.getStringParam("crypto_fips_mode");
+            crypto.fipsProvider = agentConfig.getStringParam("crypto_fips_provider");
+            crypto.fipsTls = agentConfig.getStringParam("crypto_fips_tls");
+            crypto.sslProvider = agentConfig.getStringParam("cresco_ssl_provider");
+            if (crypto.sslProvider == null) crypto.sslProvider = System.getProperty("cresco_ssl_provider");
+            CryptoBoot.configure(crypto);
+        } catch (CryptoBoot.Refused r) {
+            fatal("agent NOT started: " + r.getMessage(), null);
+        }
+
         //LOG.info("Building OSGi Framework");
 
         // Create a configuration property map.
@@ -389,7 +403,10 @@ public class HostApplication {
         configMap.put("ds.showtrace", "false");
         configMap.put("ds.showerrors", "false");
 
-        configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*");
+        // the Bouncy Castle FIPS packages, from the unmodified module jars on the class path (CryptoBoot): bundles import
+        // them instead of embedding Bouncy Castle
+        String crypto = CryptoBoot.systemPackages();
+        configMap.put(Constants.FRAMEWORK_SYSTEMPACKAGES_EXTRA, "sun.*,com.sun.*" + (crypto.isEmpty() ? "" : "," + crypto));
         configMap.put("org.osgi.framework.bootdelegation","sun.*,com.sun.*,org.graalvm.*");
 
         // make sure the cache is cleaned

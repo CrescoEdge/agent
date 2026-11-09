@@ -51,7 +51,7 @@ gate_check() {
     # a file that is not a zip archive is not a jar anything can run: it is signed as data, like any other file
     if [ "$(LC_ALL=C head -c 2 "$jar" 2>/dev/null)" != "PK" ]; then echo "OK -"; return 0; fi
     local re_gate='^passed sha384:([0-9a-f]{96})$' re_files='^sha384:([0-9a-f]{96})$' re_sum='^[0-9a-f]{96}$'
-    local re_name='^[A-Za-z0-9][A-Za-z0-9._+-]*$'
+    local re_name='^(crypto/)?[A-Za-z0-9][A-Za-z0-9._+-]*$'
     command -v unzip >/dev/null || { echo "unzip is not installed, so its known-vulnerability gate marker cannot be checked"; return 0; }
     mf="$( { unzip -p "$jar" META-INF/MANIFEST.MF 2>/dev/null || true; } | tr -d '\r' \
         | awk 'substr($0, 1, 1) == " " { cur = cur substr($0, 2); next } { if (NR > 1) print cur; cur = $0 } END { print cur }')"

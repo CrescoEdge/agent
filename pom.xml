@@ -47,6 +47,14 @@
         <!-- Escape hatch for the embedded-bundle build guard (EmbeddedBundleCheck); never set it
              for a build that will be deployed. -->
         <cresco.skipBundleCheck>false</cresco.skipBundleCheck>
+        <!-- The FIPS 140-3 crypto modules the agent carries, unmodified, in crypto/ (CryptoBoot): BC-FJA 2.1.x (CMVP
+             #4943; 2.1.3 is a patched 2.1.2 under that certificate, with no open advisory) and its companions, and
+             ACCP-FIPS (AWS-LC FIPS 3.0.0, CMVP #4816) for Linux x86_64 and aarch64. -->
+        <bcfips.version>2.1.3</bcfips.version>
+        <bcpkix-fips.version>2.1.13</bcpkix-fips.version>
+        <bcutil-fips.version>2.1.8</bcutil-fips.version>
+        <bctls-fips.version>2.1.25</bctls-fips.version>
+        <accp-fips.version>2.5.0</accp-fips.version>
     </properties>
 
     <dependencies>
@@ -77,6 +85,34 @@
             <groupId>org.conscrypt</groupId>
             <artifactId>conscrypt-openjdk-uber</artifactId>
             <version>2.6-alpha5</version>
+        </dependency>
+
+        <!-- Bouncy Castle FIPS, to compile against only (provided: never inlined in the agent jar). At run time the
+             unmodified module jars in crypto/ are put on the class path by CryptoBoot. -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bc-fips</artifactId>
+            <version>${bcfips.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-fips</artifactId>
+            <version>${bcpkix-fips.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcutil-fips</artifactId>
+            <version>${bcutil-fips.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bctls-fips</artifactId>
+            <version>${bctls-fips.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -124,6 +160,99 @@
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>3.8.1</version>
                 <executions>
+                    <!-- The FIPS crypto modules, unmodified, into the agent jar's crypto/ (a FIPS module checks its own jar:
+                         it is never unpacked into the agent or a bundle); CryptoBoot puts them on the class path at start,
+                         each checked against the SHA-384 the gate records. The same jars go to sbom-reference, where the
+                         SBOM reads their Maven coordinates (they carry no pom.properties). -->
+                    <execution>
+                        <id>crypto-modules</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                        <configuration>
+                            <skip>false</skip>
+                            <overWriteReleases>true</overWriteReleases>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.bouncycastle</groupId>
+                                    <artifactId>bc-fips</artifactId>
+                                    <version>${bcfips.version}</version>
+                                    <outputDirectory>${project.build.outputDirectory}/crypto</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.bouncycastle</groupId>
+                                    <artifactId>bcpkix-fips</artifactId>
+                                    <version>${bcpkix-fips.version}</version>
+                                    <outputDirectory>${project.build.outputDirectory}/crypto</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.bouncycastle</groupId>
+                                    <artifactId>bcutil-fips</artifactId>
+                                    <version>${bcutil-fips.version}</version>
+                                    <outputDirectory>${project.build.outputDirectory}/crypto</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.bouncycastle</groupId>
+                                    <artifactId>bctls-fips</artifactId>
+                                    <version>${bctls-fips.version}</version>
+                                    <outputDirectory>${project.build.outputDirectory}/crypto</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>software.amazon.cryptools</groupId>
+                                    <artifactId>AmazonCorrettoCryptoProvider-FIPS</artifactId>
+                                    <version>${accp-fips.version}</version>
+                                    <classifier>linux-x86_64</classifier>
+                                    <outputDirectory>${project.build.outputDirectory}/crypto</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>software.amazon.cryptools</groupId>
+                                    <artifactId>AmazonCorrettoCryptoProvider-FIPS</artifactId>
+                                    <version>${accp-fips.version}</version>
+                                    <classifier>linux-aarch_64</classifier>
+                                    <outputDirectory>${project.build.outputDirectory}/crypto</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.bouncycastle</groupId>
+                                    <artifactId>bc-fips</artifactId>
+                                    <version>${bcfips.version}</version>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/org/bouncycastle/bc-fips/${bcfips.version}</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.bouncycastle</groupId>
+                                    <artifactId>bcpkix-fips</artifactId>
+                                    <version>${bcpkix-fips.version}</version>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/org/bouncycastle/bcpkix-fips/${bcpkix-fips.version}</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.bouncycastle</groupId>
+                                    <artifactId>bcutil-fips</artifactId>
+                                    <version>${bcutil-fips.version}</version>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/org/bouncycastle/bcutil-fips/${bcutil-fips.version}</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>org.bouncycastle</groupId>
+                                    <artifactId>bctls-fips</artifactId>
+                                    <version>${bctls-fips.version}</version>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/org/bouncycastle/bctls-fips/${bctls-fips.version}</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>software.amazon.cryptools</groupId>
+                                    <artifactId>AmazonCorrettoCryptoProvider-FIPS</artifactId>
+                                    <version>${accp-fips.version}</version>
+                                    <classifier>linux-x86_64</classifier>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/software/amazon/cryptools/AmazonCorrettoCryptoProvider-FIPS/${accp-fips.version}</outputDirectory>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>software.amazon.cryptools</groupId>
+                                    <artifactId>AmazonCorrettoCryptoProvider-FIPS</artifactId>
+                                    <version>${accp-fips.version}</version>
+                                    <classifier>linux-aarch_64</classifier>
+                                    <outputDirectory>${project.build.directory}/sbom-reference/software/amazon/cryptools/AmazonCorrettoCryptoProvider-FIPS/${accp-fips.version}</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
+                    </execution>
                     <execution>
                         <id>sbom-reference</id>
                         <!-- early, so the tests judge the embedded jars as the SBOM step will -->
@@ -284,6 +413,8 @@
                             <Cresco-Gate>${cresco.gate.marker}</Cresco-Gate>
                             <Cresco-Gate-Files>${cresco.gate.files}</Cresco-Gate-Files>
                             <Cresco-Gate-Date>${cresco.gate.date}</Cresco-Gate-Date>
+                            <!-- java -jar runs it before main: it appends the crypto modules to the class path (CryptoBoot) -->
+                            <Launcher-Agent-Class>io.cresco.main.CryptoBoot</Launcher-Agent-Class>
                             <artifactId>cresco-agent</artifactId>
                             <Implementation-Version>${project.version}.${buildNumber}.${maven.build.timestamp}</Implementation-Version>
                         </manifestEntries>

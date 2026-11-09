@@ -202,6 +202,62 @@ Configuration is via `-D` system properties, `CRESCO_*` environment variables, o
 `enable_wsapi`/`enable_console`/`enable_dashboard`, `port`. Runtime state is written to
 `cresco-data/` (Felix cache, Derby DB, ActiveMQ data, logs).
 
+### Crypto modules and FIPS 140-3 mode
+
+The agent jar carries the FIPS 140-3 validated crypto modules, **unmodified**, under `crypto/`: Bouncy Castle FIPS
+(BC-FJA `bc-fips` 2.1.3, CMVP certificate #4943, with `bcpkix-fips`, `bcutil-fips`, `bctls-fips`) and the Amazon Corretto
+Crypto Provider FIPS build (ACCP-FIPS 2.5.0, a JCA provider over AWS-LC FIPS 3.0.0, CMVP #4816) for Linux x86_64 and
+aarch64. A FIPS module checks its own jar, so none of them is repackaged into the agent or a bundle:
+
+- **Loading.** `java -jar` runs the jar's launcher agent (`Launcher-Agent-Class: io.cresco.main.CryptoBoot`) before
+  `main`. At start each module jar is written to a new owner-only temporary directory, checked against the SHA-384 the
+  known-vulnerability gate recorded for it (`META-INF/cresco/embedded.sha384`, covered by the release signature) and
+  appended, unmodified, to the system class path. The OSGi framework exports the Bouncy Castle packages from there
+  (`org.osgi.framework.system.packages.extra`, from the jars' own `Export-Package`), and the controller and wsapi import
+  them instead of embedding Bouncy Castle. A deployment that puts the jars on the class path itself is used as is.
+- **Standard profile** (the default): the JDK's providers serve crypto and TLS, as before; Bouncy Castle FIPS is only
+  the X.509 library the controller and wsapi make certificates with.
+- **`security_profile=production`** (or `crypto_fips_mode=true` in the standard profile): **FIPS approved-only mode**.
+  Every JCA provider that is not a FIPS module is removed (SUN, SunJCE, SunEC, SunRsaSign, ...). The list is ACCP-FIPS
+  (its approved algorithms only: AES-GCM, AES-KWP, SHA-2, HMAC-SHA-2, HKDF, ECDH, EC/RSA keys, ECDSA/RSA/RSA-PSS
+  signatures with SHA-2), then BC-FJA in approved-only mode (everything else: X.509, PKIX, BCFKS keystores, PBKDF2,
+  the DRBG), then SunJSSE as the TLS protocol engine, whose every cryptographic operation is then a module's; TLS is
+  TLS 1.3 (SunJSSE's TLS 1.2 key derivation is SunJCE's, which is gone). The OS entropy (the platform's NativePRNG) is the
+  DRBG's seed source only. A non-approved algorithm is refused: at start the agent checks that MD5, ChaCha20, RC4,
+  Blowfish, X25519 and MD5withRSA are not available and that the modules work, and does not start otherwise. The log
+  line `crypto: FIPS 140-3 approved-only mode: ...` names the modules and which serves AES-GCM, SHA-256, random numbers
+  and TLS. Where ACCP-FIPS has no build (macOS, Windows), BC-FJA serves everything, with a WARNING (its pure-Java TLS is
+  far slower, see below).
+- **Keystores** in FIPS mode are BCFKS (a PKCS#12 file's integrity MAC derives its key with the PKCS#12 KDF, which FIPS
+  does not approve): the `PKCS12` keystore name is served by BCFKS, so code keeps asking for PKCS12; a PKCS#12 file is
+  refused with how to convert it: `java -jar agent.jar --crypto convert-keystore <in.p12> <password-file> <out.bcfks>`
+  (same password, owner-only output). PEM trust anchors, CRLs and PEM plugin-signing bundles need nothing.
+- **Refused in FIPS mode**: `crypto_fips_mode=false` with the production profile, `cresco_ssl_provider=CONSCRYPT`
+  (BoringSSL is not a FIPS module), wsapi's `wsapi_ssl_provider=OPENSSL`.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `crypto_fips_mode` | production: true, else false | FIPS approved-only mode |
+| `crypto_fips_provider` | `auto` | `auto`: ACCP-FIPS first where it runs; `accp`: required (refuse to start without it); `bcfips`: BC-FJA only |
+| `crypto_fips_tls` | `sunjsse` | `bcjsse`: BCJSSE over BC-FJA (TLS 1.3 and 1.2, the TLS key derivation inside the module; slower) |
+
+`java -jar agent.jar --crypto status [--fips]` shows what a node would run with; `scripts/bench-crypto.sh <agent.jar>`
+measures this host in every mode (one thread; TLS is a pair of SSLEngines, each byte encrypted and decrypted), and
+`scripts/bench/dataplane_perf.py` measures the dataplane through running agents (one node, or across the broker bridge
+with `--rx-host/--rx-port`). Measured 2026-11-08:
+
+| one thread, MB/s or ops/s | AES-256-GCM | TLS 1.3 | RSA-3072 sign/s | ECDSA P-384 sign/s |
+|---|---|---|---|---|
+| Xeon 8480CL (DGX), standard (JDK) | 8717 | 2793 | 425 | 1064 |
+| Xeon 8480CL, FIPS: ACCP-FIPS + BC-FJA, SunJSSE (the default) | 11857 | 3623 | 1403 | 12662 |
+| Xeon 8480CL, FIPS: BC-FJA only (native VAES), SunJSSE | 4547 | 916 | 333 | 2433 |
+| Xeon 8480CL, FIPS: BC-FJA + BCJSSE | 4547 | 818 | 349 | 2515 |
+| Apple M3 Max, standard (JDK) | 4942 | 1890 | 519 | 1577 |
+| Apple M3 Max, FIPS: BC-FJA only (no native code for this platform) | 116 | 56 | 422 | 3570 |
+
+So on Linux x86_64 FIPS mode is faster than the JDK (ACCP-FIPS); BC-FJA alone costs 3-4x of TLS throughput there and 30x
+on Apple silicon, which is why ACCP-FIPS comes first wherever it runs.
+
 ### Felix WebConsole
 
 `enable_console=true` starts the Felix WebConsole (`/system/console`, WebConsole 5.1.0) only when it can be secured;

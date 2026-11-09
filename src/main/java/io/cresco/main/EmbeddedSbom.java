@@ -152,9 +152,17 @@ public final class EmbeddedSbom {
         File[] jars = dir.listFiles((d, name) -> name.toLowerCase().endsWith(".jar"));
         if (jars == null) throw new IOException(dir + " is not a readable directory");
         Arrays.sort(jars);
+        List<File> all = new ArrayList<>(Arrays.asList(jars));
+        // the FIPS crypto modules, unmodified in crypto/ (CryptoBoot): listed as crypto/<jar>
+        File[] modules = new File(dir, "crypto").listFiles((d, name) -> name.toLowerCase().endsWith(".jar"));
+        if (modules != null) {
+            Arrays.sort(modules);
+            all.addAll(Arrays.asList(modules));
+        }
         List<String> refs = new ArrayList<>();
-        for (File jar : jars) {
-            Map<String, Object> c = component(jar, ref);
+        for (File jar : all) {
+            String entry = jar.getParentFile().equals(dir) ? jar.getName() : "crypto/" + jar.getName();
+            Map<String, Object> c = component(jar, entry, ref);
             String bomRef = (String) c.get("bom-ref");
             components.removeIf(o -> o instanceof Map && bomRef.equals(((Map<String, Object>) o).get("bom-ref")));
             components.add(c);
@@ -190,10 +198,20 @@ public final class EmbeddedSbom {
 
     /** The component for one embedded jar, its inlined libraries named by content against {@code ref} where they can be. */
     static Map<String, Object> component(File jar, InlinedLibraries.Reference ref) throws IOException {
+        return component(jar, jar.getName(), ref);
+    }
+
+    /**
+     * As {@link #component(File, InlinedLibraries.Reference)}, for the embedded file {@code entry} (its path in the agent
+     * jar). A jar that is exactly a reference artifact (the same bytes: the crypto modules, which carry no pom.properties)
+     * has that artifact's coordinates and carries no other library.
+     */
+    static Map<String, Object> component(File jar, String entry, InlinedLibraries.Reference ref) throws IOException {
         byte[] bytes = Files.readAllBytes(jar.toPath());
+        InlinedLibraries.Reference.Artifact whole = ref == null || ref.isEmpty() ? null : ref.byJar(InlinedLibraries.sha256Hex(bytes));
         Map<String, Object> c = new LinkedHashMap<>();
         c.put("type", "library");
-        c.put("bom-ref", "embedded:" + jar.getName());
+        c.put("bom-ref", "embedded:" + entry);
         List<Map<String, Object>> nested = new ArrayList<>();
         String bsn = null, bundleVersion = null;
         Properties own = null;
@@ -253,12 +271,19 @@ public final class EmbeddedSbom {
                     nested.add(maven(jar.getName(), p, null));
                 }
             }
-            List<InlinedLibraries.Found> found = InlinedLibraries.find(classPackages, ctx, path -> entryBytes(jf, path));
-            for (InlinedLibraries.Found f : InlinedLibraries.identifyByContent(found, classSha, ref, ctx)) {
-                nested.add(inlined(jar.getName(), f));
+            if (whole == null) {
+                List<InlinedLibraries.Found> found = InlinedLibraries.find(classPackages, ctx, path -> entryBytes(jf, path));
+                for (InlinedLibraries.Found f : InlinedLibraries.identifyByContent(found, classSha, ref, ctx)) {
+                    nested.add(inlined(jar.getName(), f));
+                }
             }
         }
-        if (own != null) {
+        if (own == null && whole != null) {
+            c.put("group", whole.group);
+            c.put("name", whole.artifact);
+            c.put("version", whole.version);
+            c.put("purl", whole.purl());
+        } else if (own != null) {
             c.put("group", own.getProperty("groupId"));
             c.put("name", own.getProperty("artifactId"));
             c.put("version", own.getProperty("version"));
@@ -267,10 +292,12 @@ public final class EmbeddedSbom {
             c.put("name", bsn != null ? bsn : jar.getName().replaceAll("\\.jar$", ""));
             c.put("version", bundleVersion != null ? bundleVersion : "unknown");
         }
-        c.put("description", "Embedded in the agent jar as " + jar.getName());
+        c.put("description", "Embedded in the agent jar as " + entry + (whole != null
+                ? " (unmodified; identified as " + whole.gav() + " by its SHA-256)" : ""));
         c.put("hashes", hashesOf(bytes, "SHA-256", "SHA-384", "SHA-512"));
         List<Object> props = new ArrayList<>();
-        props.add(prop("cresco:embedded-file", jar.getName()));
+        props.add(prop("cresco:embedded-file", entry));
+        if (entry.startsWith("crypto/")) props.add(prop("cresco:crypto-module", "true"));
         if (bsn != null) props.add(prop("osgi:Bundle-SymbolicName", bsn));
         if (bundleVersion != null) props.add(prop("osgi:Bundle-Version", bundleVersion));
         c.put("properties", props);

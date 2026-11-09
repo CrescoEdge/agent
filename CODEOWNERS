@@ -21,6 +21,11 @@
 /src/main/java/io/cresco/main/InlinedLibraries.java         @codybum
 /src/main/java/io/cresco/main/EmbeddedBundleCheck.java      @codybum
 
+# the crypto modules and which of them serves the JVM's crypto (FIPS approved-only mode)
+/src/main/java/io/cresco/main/CryptoBoot.java               @codybum
+/src/main/java/io/cresco/main/FipsProviders.java            @codybum
+/src/main/java/io/cresco/main/CryptoTool.java               @codybum
+
 # release signing and verification
 /scripts/sign-release.sh                                    @codybum
 /scripts/verify-release.sh                                  @codybum

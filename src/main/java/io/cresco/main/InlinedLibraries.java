@@ -290,19 +290,30 @@ final class InlinedLibraries {
     static final class Reference {
 
         static final class Artifact {
-            final String group, artifact, version, file, sha256;
+            final String group, artifact, version, classifier, file, sha256;
 
-            Artifact(String group, String artifact, String version, String file, String sha256) {
+            Artifact(String group, String artifact, String version, String classifier, String file, String sha256) {
                 this.group = group;
                 this.artifact = artifact;
                 this.version = version;
+                this.classifier = classifier;
                 this.file = file;
                 this.sha256 = sha256;
             }
 
             String ga() { return group + ":" + artifact; }
 
-            String gav() { return ga() + ":" + version; }
+            String gav() { return ga() + ":" + version + (classifier == null ? "" : ":" + classifier); }
+
+            String purl() {
+                return "pkg:maven/" + group + "/" + artifact + "@" + version + (classifier == null ? "" : "?classifier=" + classifier);
+            }
+        }
+
+        /** The reference artifact whose jar is exactly these bytes (SHA-256), or null. */
+        Artifact byJar(String sha256) {
+            for (Artifact a : artifacts) if (a.sha256.equals(sha256)) return a;
+            return null;
         }
 
         /** Class entry path to the class's SHA-256 to the reference artifacts that hold exactly that class there. */
@@ -324,13 +335,17 @@ final class InlinedLibraries {
                 int n = rel.getNameCount();
                 if (n < 4) throw new java.io.IOException("reference jar " + jar + " is not in Maven repository layout");
                 String version = rel.getName(n - 2).toString(), artifact = rel.getName(n - 3).toString();
-                if (!rel.getFileName().toString().equals(artifact + "-" + version + ".jar")) {
-                    throw new java.io.IOException("reference jar " + jar + " is not " + artifact + "-" + version + ".jar");
+                String name = rel.getFileName().toString(), base = artifact + "-" + version;
+                String classifier = null;
+                if (name.startsWith(base + "-") && name.endsWith(".jar") && name.length() > base.length() + 5) {
+                    classifier = name.substring(base.length() + 1, name.length() - 4);
+                } else if (!name.equals(base + ".jar")) {
+                    throw new java.io.IOException("reference jar " + jar + " is not " + base + ".jar or " + base + "-<classifier>.jar");
                 }
                 StringBuilder g = new StringBuilder();
                 for (int i = 0; i < n - 3; i++) g.append(i > 0 ? "." : "").append(rel.getName(i));
                 byte[] bytes = java.nio.file.Files.readAllBytes(jar);
-                Artifact a = new Artifact(g.toString(), artifact, version, rel.getFileName().toString(), sha256Hex(bytes));
+                Artifact a = new Artifact(g.toString(), artifact, version, classifier, rel.getFileName().toString(), sha256Hex(bytes));
                 r.artifacts.add(a);
                 try (java.util.jar.JarInputStream in = new java.util.jar.JarInputStream(new ByteArrayInputStream(bytes))) {
                     java.util.jar.JarEntry e;
