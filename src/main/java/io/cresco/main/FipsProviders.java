@@ -183,6 +183,12 @@ final class FipsProviders {
             return ks;
         }
 
+        private static char[] randomPassword() {
+            byte[] b = new byte[24];
+            new SecureRandom().nextBytes(b);
+            return java.util.Base64.getEncoder().encodeToString(b).toCharArray();
+        }
+
         static boolean isPkcs12(byte[] b) {
             // PFX ::= SEQUENCE { version INTEGER (3), authSafe ContentInfo, macData ... }: 30 <len> 02 01 03
             int i = 0;
@@ -224,9 +230,24 @@ final class FipsProviders {
             }
         }
 
+        /**
+         * Keys set with no password (Netty's one-time probe of its TLS context does this): BC-FJA warns of a weak password
+         * for each, so in memory such a key is protected by a random password of this store, which an empty one then
+         * opens. A store written to a file keeps that random protection (write keys with a password).
+         */
+        private final java.util.Map<String, char[]> unprotected = new java.util.concurrent.ConcurrentHashMap<>();
+
+        private char[] protection(String alias, char[] password, boolean setting) {
+            if (password != null && password.length > 0) {
+                if (setting) unprotected.remove(alias);
+                return password;
+            }
+            return setting ? unprotected.computeIfAbsent(alias, a -> randomPassword()) : unprotected.getOrDefault(alias, password);
+        }
+
         @Override
         public Key engineGetKey(String alias, char[] password) throws NoSuchAlgorithmException, UnrecoverableKeyException {
-            try { return ks().getKey(alias, password); } catch (KeyStoreException e) { throw new IllegalStateException(e); }
+            try { return ks().getKey(alias, protection(alias, password, false)); } catch (KeyStoreException e) { throw new IllegalStateException(e); }
         }
 
         @Override
@@ -246,7 +267,7 @@ final class FipsProviders {
 
         @Override
         public void engineSetKeyEntry(String alias, Key key, char[] password, Certificate[] chain) throws KeyStoreException {
-            ks().setKeyEntry(alias, key, password, chain);
+            ks().setKeyEntry(alias, key, protection(alias, password, true), chain);
         }
 
         @Override
@@ -262,6 +283,7 @@ final class FipsProviders {
         @Override
         public void engineDeleteEntry(String alias) throws KeyStoreException {
             ks().deleteEntry(alias);
+            unprotected.remove(alias);
         }
 
         @Override

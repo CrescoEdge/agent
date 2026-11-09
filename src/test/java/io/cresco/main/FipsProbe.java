@@ -37,6 +37,14 @@ public final class FipsProbe {
         System.out.println("tls=" + javax.net.ssl.SSLContext.getInstance("TLS").getProvider().getName());
         System.out.println("approvedOnly=" + System.getProperty("org.bouncycastle.fips.approved_only"));
         System.out.println("fipsTls=" + System.getProperty("cresco.crypto.fips.tls"));
+        // a key set with no password (Netty's probe does): retrievable with none, and BC-FJA sees no weak password
+        java.security.KeyPairGenerator g = java.security.KeyPairGenerator.getInstance("EC");
+        g.initialize(new java.security.spec.ECGenParameterSpec("secp384r1"));
+        java.security.KeyPair kp = g.generateKeyPair();
+        KeyStore mem = KeyStore.getInstance("PKCS12");
+        mem.load(null, null);
+        mem.setKeyEntry("e", kp.getPrivate(), new char[0], new java.security.cert.Certificate[]{CryptoTool.SelfSigned.cert(kp)});
+        System.out.println("emptyPwKey=" + (mem.getKey("e", new char[0]) != null));
         if (args.length >= i + 2) {
             char[] pw = Files.readAllLines(Paths.get(args[i + 1])).get(0).trim().toCharArray();
             try (InputStream in = Files.newInputStream(Paths.get(args[i]))) {
