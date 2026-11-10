@@ -23,6 +23,7 @@ Prints a line "BENCH {json}" with the results.
 """
 import argparse
 import json
+import os
 import struct
 import sys
 import threading
@@ -116,7 +117,12 @@ def main():
                          "not the depth of the queue a faster sender builds ahead of its reader")
     ap.add_argument("--start-at", type=float, default=0.0,
                     help="wall-clock time (time.time()) to start sending at, so several processes send together")
+    ap.add_argument("--ready-file", default=None,
+                    help="create this file once connected and both dataplanes are active (a launcher's start barrier)")
+    ap.add_argument("--start-file", default=None,
+                    help="then wait for this file and start sending at the wall-clock time written in it")
     args = ap.parse_args()
+    t_script = time.perf_counter()   # setup is timed from here (connects, dataplane activation)
 
     ident = args.stream or ("perf-" + uuid.uuid4().hex[:8])
     cfg = build_stream_config(ident)
@@ -134,6 +140,7 @@ def main():
     if not (rx_client.connect() and tx_client.connect()):
         print("ERROR: control-socket connect failed")
         return 2
+    connect_s = time.perf_counter() - t_script
 
     rx = Receiver()
     if args.rx_sleep_ms > 0:
@@ -145,16 +152,32 @@ def main():
     if not rx_dp.connect():
         print("ERROR: receiver dataplane failed to activate")
         return 2
+    rx_ready_s = time.perf_counter() - t_script
     tx_dp = tx_client.get_dataplane(cfg)  # sender: no callback (ignores its own echo)
     if not tx_dp.connect():
         print("ERROR: sender dataplane failed to activate")
         return 2
+    setup_s = time.perf_counter() - t_script
     time.sleep(1.0)  # let listeners register on the broker
+    if args.ready_file:
+        open(args.ready_file, "w").close()
+    if args.start_file:
+        # a launcher writes the start time once every flow is ready: flows that took longer to start (interpreter,
+        # imports, connects) do not begin late and stretch a measurement that spans all of them
+        wait_until = time.perf_counter() + 300
+        while not os.path.exists(args.start_file):
+            if time.perf_counter() > wait_until:
+                print("ERROR: no start file " + args.start_file)
+                return 2
+            time.sleep(0.01)
+        args.start_at = float(open(args.start_file).read().strip())
 
     pad = size - HDR.size
     filler = b"\x00" * pad
     if args.start_at > 0:
         time.sleep(max(0.0, args.start_at - time.time()))
+    # > 0: this flow was not ready by --start-at and began this much later than the others were told to
+    start_late_s = round(time.time() - args.start_at, 3) if args.start_at > 0 else None
 
     interval = (size / (args.rate_mib_s * 1048576.0)) if args.rate_mib_s > 0 else 0.0
     t0 = time.perf_counter()
@@ -202,7 +225,9 @@ def main():
     res = {"messages": args.messages, "size": size, "mode": args.mode, "received": rx.count, "send_s": round(send_elapsed, 3),
            "recv_mib_s": round(total_mb / recv_elapsed, 1) if rx.count else 0.0, "recv_msg_s": round(rx.count / recv_elapsed) if rx.count else 0,
            "p50_ms": round(pct(0.50), 2), "p99_ms": round(pct(0.99), 2), "cross_node": bool(args.rx_host or args.rx_port),
-           "recv_bytes": rx.bytes, "first_rx": rx.first_ts, "last_rx": rx.last_ts, "t0": t0,
+           "recv_bytes": rx.bytes, "first_rx": rx.first_ts, "last_rx": rx.last_ts, "t0": t0, "t_script": t_script,
+           "connect_s": round(connect_s, 3), "rx_ready_s": round(rx_ready_s, 3), "setup_s": round(setup_s, 3),
+           "start_late_s": start_late_s,
            "missing": args.messages - len(rx.seqs), "dups": rx.dups, "out_of_order": rx.out_of_order,
            "bad_size": sum(n for sz, n in rx.sizes.items() if sz != size),
            "sizes_seen": sorted(rx.sizes.items())[:6]}
