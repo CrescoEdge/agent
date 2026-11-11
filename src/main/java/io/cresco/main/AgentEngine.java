@@ -17,6 +17,11 @@ public class AgentEngine
 
     public static void main(String[] argv) {
 
+        // what this jar is (release, build, the embedded bundles as bundles.lock names them): no node is started
+        if (argv.length > 0 && (argv[0].equals("--version") || argv[0].equals("-version"))) {
+            System.out.print(AgentVersion.describe());
+            System.exit(0);
+        }
         // the FIPS crypto modules (unmodified jars in crypto/) on the class path before anything else (CryptoBoot); which of
         // them serves the JVM's crypto is set once the agent's configuration is read (HostApplication)
         try {

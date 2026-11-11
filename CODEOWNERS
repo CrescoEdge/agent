@@ -26,7 +26,14 @@
 /src/main/java/io/cresco/main/FipsProviders.java            @codybum
 /src/main/java/io/cresco/main/CryptoTool.java               @codybum
 
-# release signing and verification
+# what a release contains: the embedded bundles, the lock that names them, and the script that changes both
+/bundles.lock                                               @codybum
+/prebuild.sh                                                @codybum
+/src/main/resources/*.jar                                   @codybum
+
+# release publishing, signing and verification
+/scripts/release.sh                                         @codybum
+/scripts/rebuild-check.sh                                   @codybum
 /scripts/sign-release.sh                                    @codybum
 /scripts/verify-release.sh                                  @codybum
 

@@ -64,8 +64,38 @@ This produces `target/agent-1.3-SNAPSHOT.jar` (main class `io.cresco.main.AgentE
 The build fails (process-classes, `EmbeddedBundleCheck`) if any embedded jar in
 `src/main/resources/` is not an OSGi bundle (no `Bundle-SymbolicName`, e.g. a controller built
 without `bundle:bundle`), naming the jar; `-Dcresco.skipBundleCheck=true` bypasses it for testing only.
-`prebuild.sh` shows how the component jars are staged into `src/main/resources/` before the
-assembly; it can pull published snapshots, or you can stage locally-built bundles.
+
+### The embedded bundles are pinned: `bundles.lock`
+
+The component jars are committed in `src/main/resources/`, and `bundles.lock` names each of them: file,
+`Bundle-SymbolicName`, `Bundle-Version`, SHA-256 and where it came from (a snapshot on Maven Central, by its
+timestamped version, or `committed` for a bundle built by hand). A build embeds exactly the bundles the lock names or
+it fails, naming the jar (the same `EmbeddedBundleCheck`; the lock also travels in the agent jar). Nothing is fetched
+at build time, so the same commit gives the same agent on any day.
+
+```bash
+./prebuild.sh                      # verify the jars against bundles.lock (no network)
+./prebuild.sh --update controller  # take the latest published snapshot of a bundle (checked against Central's checksum)
+./prebuild.sh --lock executor      # record a bundle you built and copied in yourself, as it is
+```
+
+`--update` downloads with curl into a temporary directory and never reads `~/.m2`, where a bundle installed by a
+local build would be taken for the published one. Commit `bundles.lock` together with the jars it names: its diff is
+the statement of what the next release contains.
+
+### Releases have names
+
+Every commit of `main` is the release `1.3.<n>`, n being the number of commits up to it. The CI workflow (or
+`scripts/release.sh --build --alias` by hand, on any host with the GitHub CLI) publishes it as a GitHub release of its
+own, tagged on that commit and never replaced, with `agent-1.3.<n>.jar`, its SHA-256, `bundles.lock` and the SBOM. The
+release `1.3-SNAPSHOT` still carries the latest jar under its old name (`agent-1.3-SNAPSHOT.jar`) and is replaced each
+time: use it to get "the latest 1.3", and a `1.3.<n>` release to pin what a deployment runs.
+
+```bash
+java -jar agent-1.3.374.jar --version          # the release, the build, every embedded bundle with its SHA-256
+git checkout 1.3.374 && scripts/rebuild-check.sh agent-1.3.374.jar            # the jar embeds what the lock names
+scripts/rebuild-check.sh agent-1.3.374.jar --rebuild   # and a build of this checkout has the same bytes in every entry
+```
 
 ## Release: SBOM and signatures
 

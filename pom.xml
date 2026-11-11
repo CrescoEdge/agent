@@ -47,6 +47,9 @@
         <!-- Escape hatch for the embedded-bundle build guard (EmbeddedBundleCheck); never set it
              for a build that will be deployed. -->
         <cresco.skipBundleCheck>false</cresco.skipBundleCheck>
+        <!-- The release this build is: 1.3.<number of commits on main> (scripts/release.sh and the CI workflow pass it);
+             any other build says it is not one. Written to the manifest as Cresco-Release. -->
+        <cresco.release>unreleased</cresco.release>
         <!-- The FIPS 140-3 crypto modules the agent carries, unmodified, in crypto/ (CryptoBoot): BC-FJA 2.1.x (CMVP
              #4943; 2.1.3 is a patched 2.1.2 under that certificate, with no open advisory) and its companions, and
              ACCP-FIPS (AWS-LC FIPS 3.0.0, CMVP #4816) for Linux x86_64 and aarch64. -->
@@ -124,6 +127,20 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- bundles.lock travels with the agent (META-INF/cresco/bundles.lock): java -jar agent.jar -version prints
+                 it, and scripts/rebuild-check.sh compares a jar with it -->
+            <resource>
+                <directory>${project.basedir}</directory>
+                <includes>
+                    <include>bundles.lock</include>
+                </includes>
+                <targetPath>META-INF/cresco</targetPath>
+            </resource>
+        </resources>
         <plugins>
 
             <!-- maven-compiler-plugin (release 21) inherited from cresco-parent -->
@@ -318,6 +335,8 @@
                                       classpath="${project.build.outputDirectory}"
                                       fork="true" failonerror="true">
                                     <arg value="${project.build.outputDirectory}"/>
+                                    <!-- and each embedded Cresco bundle must be the one bundles.lock names -->
+                                    <arg value="${project.basedir}/bundles.lock"/>
                                 </java>
                             </target>
                         </configuration>
@@ -417,6 +436,7 @@
                             <Launcher-Agent-Class>io.cresco.main.CryptoBoot</Launcher-Agent-Class>
                             <artifactId>cresco-agent</artifactId>
                             <Implementation-Version>${project.version}.${buildNumber}.${maven.build.timestamp}</Implementation-Version>
+                            <Cresco-Release>${cresco.release}</Cresco-Release>
                         </manifestEntries>
                     </archive>
                     <descriptorRefs>

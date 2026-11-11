@@ -1,0 +1,13 @@
+# The Cresco bundles this agent embeds (src/main/resources/<file>): what a build contains, byte for byte.
+# Written by prebuild.sh (--update, --lock); checked by prebuild.sh and by the build (EmbeddedBundleCheck).
+# file  Bundle-SymbolicName  Bundle-Version  SHA-256  origin
+controller.jar io.cresco.controller 1.3.0.SNAPSHOT-20261111023154 31c4325885485159c8cd977a18e5341958a69b0f439da64a935795dc2813298d central:io.cresco:controller:1.3-20261111.024544-122
+core.jar io.cresco.core 1.3.0.SNAPSHOT-20261025140538 b49669bebd36b0cb6776a59074000b0cb0e771a4e1bd1cc8288120b00307b760 central:io.cresco:core:1.3-20261025.140554-4
+executor.jar io.cresco.executor 1.3.0.SNAPSHOT-20261109194741 0123e7a56277c55fb589501377493291f9c600da3d8f4514877dc09a123f4fce committed
+filerepo.jar io.cresco.filerepo 1.3.0.SNAPSHOT-20261109194746 b7b18fe76f4e551e814f351939a8203411cb7ad380806734239cd52b34e448cc committed
+library.jar io.cresco.library 1.3.0.SNAPSHOT-20261110233329 c6f750e4c24a1cda485bac16070514b4de0013f5881c0560d2c8058233e03278 central:io.cresco:library:1.3-20261110.233355-39
+logger.jar io.cresco.logger 1.3.0.SNAPSHOT-20261104184837 a6060a2a72dc64a5e3a07ac2b6d780037521cf0703b3d3c824b38a2557eb2268 central:io.cresco:logger:1.3-20261104.184849-5
+repo.jar io.cresco.repo 1.3.0.SNAPSHOT-20261105000609 3a3ce3653ea2a54e7b668507560e8d6fea303f86e7855f0eec67eb323f55c447 central:io.cresco:repo:1.3-20261105.000633-12
+stunnel.jar io.cresco.stunnel 1.3.0.SNAPSHOT-20261025140600 20b71c537569c9b40df84605b6fd3615f6792a18e6366f5b2ab67646d3eb0960 central:io.cresco:stunnel:1.3-20261025.140620-29
+sysinfo.jar io.cresco.sysinfo 1.3.0.SNAPSHOT-20261025140557 a8abc966d872ba693c3fc2f4353fd4b1254c49e87ffade6ef5b8c100512416ed central:io.cresco:sysinfo:1.3-20261025.140614-4
+wsapi.jar io.cresco.wsapi 1.3.0.SNAPSHOT-20261110234925 5508063e84443e104bf48b5c390cb1742d6b034047aa2ae546629709667c63e3 central:io.cresco:wsapi:1.3-20261110.235317-33
