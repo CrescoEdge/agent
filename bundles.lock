@@ -1,7 +1,7 @@
 # The Cresco bundles this agent embeds (src/main/resources/<file>): what a build contains, byte for byte.
 # Written by prebuild.sh (--update, --lock); checked by prebuild.sh and by the build (EmbeddedBundleCheck).
 # file  Bundle-SymbolicName  Bundle-Version  SHA-256  origin
-controller.jar io.cresco.controller 1.3.0.SNAPSHOT-20261111023154 31c4325885485159c8cd977a18e5341958a69b0f439da64a935795dc2813298d central:io.cresco:controller:1.3-20261111.024544-122
+controller.jar io.cresco.controller 1.3.0.SNAPSHOT-20261111043604 c4e2a944cae2c075e4ef184178100bb66bfb05d7ead5dcab8e7e42805838ef35 central:io.cresco:controller:1.3-20261111.045143-123
 core.jar io.cresco.core 1.3.0.SNAPSHOT-20261025140538 b49669bebd36b0cb6776a59074000b0cb0e771a4e1bd1cc8288120b00307b760 central:io.cresco:core:1.3-20261025.140554-4
 executor.jar io.cresco.executor 1.3.0.SNAPSHOT-20261109194741 0123e7a56277c55fb589501377493291f9c600da3d8f4514877dc09a123f4fce committed
 filerepo.jar io.cresco.filerepo 1.3.0.SNAPSHOT-20261109194746 b7b18fe76f4e551e814f351939a8203411cb7ad380806734239cd52b34e448cc committed
