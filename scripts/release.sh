@@ -75,6 +75,7 @@ if [ -f target/agent-1.3-SNAPSHOT.cdx.json ]; then
 fi
 {
     echo "Cresco agent $tag: commit $commit, build $impl."
+    echo "Built with $(java -version 2>&1 | head -1) on $(uname -s)."
     echo
     echo "SHA-256 of agent-$tag.jar: \`$sum\`"
     echo

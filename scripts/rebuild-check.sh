@@ -49,6 +49,8 @@ if [ "$REBUILD" = "--rebuild" ]; then
     else
         echo "rebuild-check: a rebuild of this checkout differs from the jar in $(grep -c '^[<>]' target/rebuild-check.diff) entr(ies) (< the jar, > the rebuild):" >&2
         head -20 target/rebuild-check.diff >&2
+        echo "rebuild-check: class files that differ in a debug table only come from another build of the JDK (the release's" \
+             "notes name the one it was built with: javap -v shows the difference); anything else is not this checkout's build" >&2
         bad=1
     fi
 fi

@@ -97,6 +97,11 @@ git checkout 1.3.374 && scripts/rebuild-check.sh agent-1.3.374.jar            # 
 scripts/rebuild-check.sh agent-1.3.374.jar --rebuild   # and a build of this checkout has the same bytes in every entry
 ```
 
+A rebuild with the same JDK build is identical but for the four entries that record the build (the manifest, Maven's
+`pom.properties`, the SBOM and the gate's list). Another 21.x patch release of the JDK can change a debug table: the
+release 1.3.374, built by CI on Linux, differs from a rebuild with Homebrew's 21.0.5 on macOS in one line-number entry
+of one class and nothing else. Each release's notes name the JDK it was built with.
+
 ## Release: SBOM and signatures
 
 Every `mvn package` writes a CycloneDX 1.6 software bill of materials next to the jar,
