@@ -13,6 +13,9 @@
 #   prebuild.sh --lock [name..]    record the named jars (default: all) as they are, origin "committed": after putting a
 #                                  bundle you built yourself in place (mvn clean package bundle:bundle in its repository)
 #
+# A bundle from Central is recorded as central:io.cresco:<artifact>:<snapshot>@<source commit>, the commit being the one
+# its manifest names (Cresco-Commit, first 12 characters; absent for a bundle built before 2026-11-11).
+#
 # --update downloads with curl into a temporary directory. It never reads ~/.m2: a bundle installed there by a local
 # build would be taken for the published one (it was, by the script this replaces). Review the diff of bundles.lock
 # before you commit: it is the statement of what the next release contains.
@@ -93,7 +96,7 @@ verify() {
 }
 
 update() {
-    local name art meta ts bn ver url tmp want
+    local name art meta ts bn ver url tmp want commit origin
     command -v curl >/dev/null 2>&1 || die "--update needs curl"
     tmp="$(mktemp -d "${TMPDIR:-/tmp}/cresco-prebuild.XXXXXX")"
     CLEANUP="$tmp"
@@ -113,8 +116,12 @@ update() {
         want="$(curl -fsS -A cresco-prebuild "$url.sha1" | cut -c1-40)" || die "$art: no checksum for $ver"
         [ "$(sha1 "$tmp/$name")" = "$want" ] || die "$art: the download does not match Central's checksum for $ver"
         mv "$tmp/$name" "$RES/$name"
-        set_line "$name" "central:io.cresco:$art:$ver"
-        echo "prebuild: $name is now io.cresco:$art:$ver ($(lock_field "$name" 3))"
+        # the source commit the bundle says it was built from (its manifest's Cresco-Commit, written by its CI build)
+        commit="$(manifest_value "$RES/$name" Cresco-Commit)"
+        case "$commit" in ''|unknown*|*[!0-9a-f]*) origin="central:io.cresco:$art:$ver" ;;
+                          *) origin="central:io.cresco:$art:$ver@$(printf '%s' "$commit" | cut -c1-12)" ;; esac
+        set_line "$name" "$origin"
+        echo "prebuild: $name is now $origin ($(lock_field "$name" 3))"
     done
 }
 
@@ -136,6 +143,6 @@ case "${1:-}" in
     "")        verify ;;
     --update)  shift; update "$@"; verify ;;
     --lock)    shift; lock "$@"; verify ;;
-    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//' ;;
+    -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//' ;;
     *)         die "unknown option $1 (see --help)" ;;
 esac

@@ -69,7 +69,8 @@ without `bundle:bundle`), naming the jar; `-Dcresco.skipBundleCheck=true` bypass
 
 The component jars are committed in `src/main/resources/`, and `bundles.lock` names each of them: file,
 `Bundle-SymbolicName`, `Bundle-Version`, SHA-256 and where it came from (a snapshot on Maven Central, by its
-timestamped version, or `committed` for a bundle built by hand). A build embeds exactly the bundles the lock names or
+timestamped version and, after `@`, the source commit the bundle's manifest names as `Cresco-Commit`; or `committed`
+for a bundle built by hand). A build embeds exactly the bundles the lock names or
 it fails, naming the jar (the same `EmbeddedBundleCheck`; the lock also travels in the agent jar). Nothing is fetched
 at build time, so the same commit gives the same agent on any day.
 
